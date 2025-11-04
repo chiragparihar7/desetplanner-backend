@@ -35,10 +35,10 @@ app.use(morgan("dev"));
 
 // 🌍 Allowed Origins (local + deployed frontend)
 const allowedOrigins = [
-  "http://localhost:5173", // for Vite local dev
-  "http://localhost:3000", // for CRA local dev
-  "https://desertplanners.vercel.app", // ✅ your live frontend domain
-  process.env.FRONTEND_URL, // fallback from .env if needed
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://desertplanners.vercel.app",
+  "https://desetplanner-backend.onrender.com",
 ];
 
 // 🛡️ CORS setup (supports multiple origins)
