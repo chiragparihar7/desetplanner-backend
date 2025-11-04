@@ -17,7 +17,7 @@ import cartRoutes from "./routes/cartRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import enquiryRoutes from "./routes/enquiryRoutes.js";
-import visaRoutes from "./routes/visaRoutes.js"
+import visaRoutes from "./routes/visaRoutes.js";
 import sectionRoutes from "./routes/sectionRoutes.js";
 
 dotenv.config();
@@ -33,12 +33,27 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan("dev"));
 
-// 🛡️ CORS setup
+// 🌍 Allowed Origins (for local + deployed frontend)
+const allowedOrigins = [
+  "http://localhost:5173", // Vite local dev
+  "http://localhost:3000", // CRA local dev
+  "https://desertplanner-frontend.vercel.app", // Vercel deployed frontend
+  process.env.FRONTEND_URL, // fallback from .env
+];
+
+// 🛡️ CORS setup (supports multiple origins)
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true); // for tools like Postman
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   })
 );
 
@@ -60,20 +75,21 @@ app.get("/", (req, res) => {
   res.send("✅ Desert Planners API is running...");
 });
 
-// Serve uploaded files
+// 📁 Serve uploaded files
 const __dirname = path.resolve();
 app.use("/uploads", express.static(path.join(__dirname, "/uploads")));
 
-// 🚀 Server + Socket.io setup
+// 🚀 HTTP + Socket.io Server setup
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    methods: ["GET", "POST", "PATCH", "DELETE"]
-  }
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PATCH", "DELETE"],
+    credentials: true,
+  },
 });
 
-// Socket connection
+// 💬 Socket connection
 io.on("connection", (socket) => {
   console.log("New client connected:", socket.id);
 
@@ -82,10 +98,10 @@ io.on("connection", (socket) => {
   });
 });
 
-// Make io accessible in controllers
+// 🔗 Make io accessible in controllers
 app.set("io", io);
 
-// Start server
+// 🟢 Start server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () =>
   console.log(`🚀 Server running on http://localhost:${PORT}`)
