@@ -125,25 +125,41 @@ export const addTour = async (req, res) => {
     await tour.save();
     console.log("✅ Tour saved successfully:", tour.title);
     res.status(201).json({ message: "Tour added successfully", tour });
-  }  catch (err) {
-  console.error("============== ❌ ADD TOUR ERROR ❌ ==============");
-  try {
-    const safeError =
-      typeof err === "object"
-        ? JSON.stringify(err, Object.getOwnPropertyNames(err), 2)
-        : String(err);
-    console.error("💥 RAW ERROR:", safeError);
-  } catch (jsonErr) {
-    console.error("💥 JSON.stringify failed:", jsonErr);
-    console.error("💥 Fallback Error:", String(err));
-  }
-  console.error("🧨 ERROR MESSAGE:", err?.message || "No message");
-  console.error("📦 BODY AT FAILURE:", JSON.stringify(req.body, null, 2));
-  console.error("📸 FILES AT FAILURE:", req.files ? Object.keys(req.files) : "❌ No files");
-  console.error("======================================================");
+  } catch (err) {
+    console.error("============== ❌ ADD TOUR ERROR ❌ ==============");
 
-  return res.status(500).json({ message: err.message });
-}
+    try {
+      // 👇 Render-friendly full error dump
+      console.error(
+        "💥 ERROR FULL DUMP:",
+        JSON.stringify(
+          {
+            message: err.message,
+            name: err.name,
+            code: err.code,
+            stack: err.stack,
+            ...err,
+          },
+          null,
+          2
+        )
+      );
+    } catch (jsonErr) {
+      console.error("💥 JSON.stringify failed:", jsonErr);
+      console.error("💥 Fallback Error:", String(err));
+    }
+
+    console.error("🧨 MESSAGE:", err?.message || "No message");
+    console.error("📦 BODY:", JSON.stringify(req.body, null, 2));
+    console.error(
+      "📸 FILES:",
+      req.files ? Object.keys(req.files) : "❌ No files"
+    );
+    console.error("======================================================");
+
+    // ✅ return response
+    return res.status(500).json({ message: err.message || "Server error" });
+  }
 };
 
 // 🟠 Update Tour
@@ -287,19 +303,25 @@ export const updateTour = async (req, res) => {
 
     res.json({ message: "Tour updated successfully", tour });
   } catch (err) {
-  console.error("============== ❌ UPDATE TOUR ERROR ❌ ==============");
-  console.error("🧨 ERROR MESSAGE:", err.message);
-  console.error("📂 STACK TRACE:", err.stack);
-  console.error("📦 BODY AT FAILURE:", JSON.stringify(req.body, null, 2));
-  console.error("📸 FILES AT FAILURE:", req.files ? Object.keys(req.files) : "❌ No files");
-  console.error("FULL ERROR JSON:", JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
-  console.error("======================================================");
+    console.error("============== ❌ UPDATE TOUR ERROR ❌ ==============");
+    console.error("🧨 ERROR MESSAGE:", err.message);
+    console.error("📂 STACK TRACE:", err.stack);
+    console.error("📦 BODY AT FAILURE:", JSON.stringify(req.body, null, 2));
+    console.error(
+      "📸 FILES AT FAILURE:",
+      req.files ? Object.keys(req.files) : "❌ No files"
+    );
+    console.error(
+      "FULL ERROR JSON:",
+      JSON.stringify(err, Object.getOwnPropertyNames(err), 2)
+    );
+    console.error("======================================================");
 
-  return res.status(500).json({
-    message: err.message,
-    stack: err.stack,
-  });
-}
+    return res.status(500).json({
+      message: err.message,
+      stack: err.stack,
+    });
+  }
 };
 
 // 🟡 Get All Tours
