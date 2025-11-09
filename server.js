@@ -7,6 +7,7 @@ import path from "path";
 import cookieParser from "cookie-parser";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import { fileURLToPath } from "url";
 
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
@@ -20,6 +21,7 @@ import enquiryRoutes from "./routes/enquiryRoutes.js";
 import visaRoutes from "./routes/visaRoutes.js";
 import sectionRoutes from "./routes/sectionRoutes.js";
 import visaCategoryRoutes from "./routes/visaCategoryRoutes.js";
+
 dotenv.config();
 
 // 🟢 Connect Database
@@ -70,17 +72,33 @@ app.use("/api/enquiries", enquiryRoutes);
 app.use("/api/visas", visaRoutes);
 app.use("/api/sections", sectionRoutes);
 app.use("/api/visa-categories", visaCategoryRoutes);
+
 // 🏠 Base route
 app.get("/", (req, res) => {
   res.send("✅ Desert Planners API is running...");
 });
 
-// 📁 Serve uploaded files
-const __dirname = path.resolve();
-app.use("/uploads", express.static(path.join(__dirname, "/uploads")));
 
+// ==========================
+// 📁 Serve uploaded files
+// ==========================
+
+// ✅ Fix for Render — proper __dirname handling
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// ✅ Static folder serve (for uploaded images)
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// ⚙️ Check if uploads folder exists (optional debug)
+console.log("📂 Serving uploads from:", path.join(__dirname, "uploads"));
+
+
+// ==========================
 // 🚀 HTTP + Socket.io setup
+// ==========================
 const server = createServer(app);
+
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
