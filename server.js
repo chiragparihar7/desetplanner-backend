@@ -1,15 +1,27 @@
-// server.js
-import express from "express";
+// ==========================
+// 🌍 Desert Planners Backend Server (FINAL FIXED VERSION)
+// ==========================
+
+// 🧩 Load environment variables FIRST
 import dotenv from "dotenv";
+dotenv.config(); // ✅ Ye sabse upar hona chahiye
+
+// ==========================
+// 🧱 Core Imports
+// ==========================
+import express from "express";
 import morgan from "morgan";
 import cors from "cors";
-import path from "path";
 import cookieParser from "cookie-parser";
+import path from "path";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { fileURLToPath } from "url";
 
+// ✅ Database Connection
 import connectDB from "./config/db.js";
+
+// ✅ Routes Imports
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import tourRoutes from "./routes/tourRoutes.js";
@@ -22,20 +34,24 @@ import visaRoutes from "./routes/visaRoutes.js";
 import sectionRoutes from "./routes/sectionRoutes.js";
 import visaCategoryRoutes from "./routes/visaCategoryRoutes.js";
 
-dotenv.config();
+// ✅ Now import Cloudinary (after dotenv is loaded)
+import "./config/cloudinary.js"; // just to ensure config loads before usage
 
+// ==========================
 // 🟢 Connect Database
+// ==========================
 connectDB();
 
+// ==========================
+// ⚙️ Express App Setup
+// ==========================
 const app = express();
-
-// 🧩 Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan("dev"));
 
-// 🌍 Allowed Origins (local + deployed frontend)
+// 🌍 Allowed Origins
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
@@ -43,17 +59,14 @@ const allowedOrigins = [
   "https://desetplanner-backend.onrender.com",
 ];
 
-// 🛡️ CORS setup (supports multiple origins)
+// 🛡️ CORS setup
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // for tools like Postman
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      } else {
-        console.log("❌ Blocked by CORS:", origin);
-        return callback(new Error("Not allowed by CORS"));
-      }
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      console.log("❌ Blocked by CORS:", origin);
+      return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -78,21 +91,16 @@ app.get("/", (req, res) => {
   res.send("✅ Desert Planners API is running...");
 });
 
+// Debug ENV Test
+console.log("✅ ENV TEST CLOUDINARY:", process.env.CLOUDINARY_CLOUD_NAME);
 
 // ==========================
-// 📁 Serve uploaded files
+// 📁 Serve uploaded files (local fallback)
 // ==========================
-
-// ✅ Fix for Render — proper __dirname handling
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// ✅ Static folder serve (for uploaded images)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
-// ⚙️ Check if uploads folder exists (optional debug)
 console.log("📂 Serving uploads from:", path.join(__dirname, "uploads"));
-
 
 // ==========================
 // 🚀 HTTP + Socket.io setup
@@ -107,19 +115,16 @@ const io = new Server(server, {
   },
 });
 
-// 💬 Socket connection
 io.on("connection", (socket) => {
   console.log("🟢 New client connected:", socket.id);
-
-  socket.on("disconnect", () => {
-    console.log("🔴 Client disconnected:", socket.id);
-  });
+  socket.on("disconnect", () => console.log("🔴 Client disconnected:", socket.id));
 });
 
-// 🔗 Make io accessible globally in controllers
 app.set("io", io);
 
+// ==========================
 // 🟢 Start server
+// ==========================
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);

@@ -1,6 +1,4 @@
 import express from "express";
-import multer from "multer";
-import path from "path";
 import {
   addTour,
   getTours,
@@ -8,26 +6,14 @@ import {
   deleteTour,
   getToursByCategory,
   updateTour,
-  checkAvailability, // 🔴 New import
+  checkAvailability,
 } from "../controllers/tourController.js";
+
+import { upload } from "../config/cloudinary.js"; // ✅ Cloudinary setup import
 
 const router = express.Router();
 
-// Multer setup
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    cb(
-      null,
-      file.fieldname + "-" + Date.now() + path.extname(file.originalname)
-    );
-  },
-});
-const upload = multer({ storage });
-
-// Routes
+// ✅ Use Cloudinary upload middleware instead of local multer
 router.post(
   "/",
   upload.fields([
@@ -41,6 +27,7 @@ router.get("/", getTours);
 router.get("/category/:categoryName", getToursByCategory);
 router.get("/:slug", getTourBySlug);
 router.delete("/:id", deleteTour);
+
 router.put(
   "/:id",
   upload.fields([
@@ -50,7 +37,7 @@ router.put(
   updateTour
 );
 
-// 🔴 New route for checking availability
+// ✅ Check availability route (same as before)
 router.post("/check-availability", checkAvailability);
 
 export default router;
