@@ -127,7 +127,7 @@ export const addTour = async (req, res) => {
     console.log("✅ Tour saved successfully:", tour.title);
     res.status(201).json({ message: "Tour added successfully", tour });
   } catch (err) {
-  const plainError = `
+    const plainError = `
 ==================== ❌ ADD TOUR ERROR ❌ ====================
 MESSAGE: ${err?.message || "No message"}
 NAME: ${err?.name || "No name"}
@@ -137,16 +137,16 @@ FILES: ${req.files ? Object.keys(req.files).join(", ") : "❌ No files"}
 =============================================================
   `;
 
-  // 🔥 Ye line Render pe 100% text print karegi
-  process.stdout.write(plainError + "\n");
+    // 🔥 Ye line Render pe 100% text print karegi
+    process.stdout.write(plainError + "\n");
 
-  // ✅ Also send back to frontend
-  return res.status(500).json({ message: err?.message || "Server Error" });
-}
+    // ✅ Also send back to frontend
+    return res.status(500).json({ message: err?.message || "Server Error" });
+  }
 };
 
 // 🟠 Update Tour
-// 🟠 Update Tour (Final Stable Version)
+
 export const updateTour = async (req, res) => {
   try {
     debugger; // 🧠 VS Code debugger yahan se execution catch karega
@@ -323,21 +323,31 @@ export const getTours = async (req, res) => {
 export const getTourBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
+
     const tour = await Tour.findOne({ slug })
+      // 🧭 Main Tour category populate
       .populate("category", "name slug")
+
+      // 🧩 Related Tours populate
       .populate({
         path: "relatedTours",
-        populate: { path: "category", select: "name slug" },
-        select: "title price mainImage slug",
+        select: "title price mainImage slug category", // 👈 added category explicitly
+        populate: {
+          path: "category",
+          select: "name slug", // 👈 ensures category slug comes for each related tour
+        },
       });
 
-    if (!tour) return res.status(404).json({ message: "Tour not found" });
+    if (!tour)
+      return res.status(404).json({ message: "Tour not found" });
+
     res.json(tour);
   } catch (err) {
     console.error("❌ Error fetching tour:", err);
     res.status(500).json({ message: err.message });
   }
 };
+
 
 // 🔴 Delete tour
 export const deleteTour = async (req, res) => {
