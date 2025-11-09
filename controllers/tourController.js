@@ -126,40 +126,28 @@ export const addTour = async (req, res) => {
     console.log("✅ Tour saved successfully:", tour.title);
     res.status(201).json({ message: "Tour added successfully", tour });
   } catch (err) {
-    console.error("============== ❌ ADD TOUR ERROR ❌ ==============");
+  console.error("============== ❌ ADD TOUR ERROR ❌ ==============");
 
-    try {
-      // 👇 Render-friendly full error dump
-      console.error(
-        "💥 ERROR FULL DUMP:",
-        JSON.stringify(
-          {
-            message: err.message,
-            name: err.name,
-            code: err.code,
-            stack: err.stack,
-            ...err,
-          },
-          null,
-          2
-        )
-      );
-    } catch (jsonErr) {
-      console.error("💥 JSON.stringify failed:", jsonErr);
-      console.error("💥 Fallback Error:", String(err));
-    }
+  // Force stringify (even nested)
+  const safeError =
+    typeof err === "object"
+      ? JSON.stringify(err, Object.getOwnPropertyNames(err), 2)
+      : String(err);
 
-    console.error("🧨 MESSAGE:", err?.message || "No message");
-    console.error("📦 BODY:", JSON.stringify(req.body, null, 2));
-    console.error(
-      "📸 FILES:",
-      req.files ? Object.keys(req.files) : "❌ No files"
-    );
-    console.error("======================================================");
+  // Render safe: print line-by-line instead of whole object
+  console.error("💥 ERROR (RAW):", safeError);
+  console.error("💥 MESSAGE:", err?.message || "No message");
+  console.error("💥 NAME:", err?.name || "Unknown");
+  console.error("💥 STACK:", err?.stack?.split("\n").slice(0, 3).join("\n") || "No stack");
+  console.error("📦 BODY:", JSON.stringify(req.body, null, 2));
+  console.error("📸 FILE KEYS:", req.files ? Object.keys(req.files) : "❌ No files");
+  console.error("======================================================");
 
-    // ✅ return response
-    return res.status(500).json({ message: err.message || "Server error" });
-  }
+  // ⚠️ Fallback log in plain string (Render always prints this)
+  console.log("🔥 ADD TOUR ERROR (STRING):", safeError);
+
+  return res.status(500).json({ message: err.message || "Server error" });
+}
 };
 
 // 🟠 Update Tour
