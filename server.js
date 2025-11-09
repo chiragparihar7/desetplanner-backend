@@ -19,7 +19,7 @@ import userRoutes from "./routes/userRoutes.js";
 import enquiryRoutes from "./routes/enquiryRoutes.js";
 import visaRoutes from "./routes/visaRoutes.js";
 import sectionRoutes from "./routes/sectionRoutes.js";
-
+import visaCategoryRoutes from "./routes/visaCategoryRoutes.js";
 dotenv.config();
 
 // 🟢 Connect Database
@@ -69,7 +69,7 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/enquiries", enquiryRoutes);
 app.use("/api/visas", visaRoutes);
 app.use("/api/sections", sectionRoutes);
-
+app.use("/api/visa-categories", visaCategoryRoutes);
 // 🏠 Base route
 app.get("/", (req, res) => {
   res.send("✅ Desert Planners API is running...");
