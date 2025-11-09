@@ -320,26 +320,33 @@ export const getTours = async (req, res) => {
 };
 
 // 🔵 Get single tour by slug
+
 export const getTourBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
 
     const tour = await Tour.findOne({ slug })
-      // 🧭 Main Tour category populate
-      .populate("category", "name slug")
-
-      // 🧩 Related Tours populate
+      // 🏷️ Main Tour Category
+      .populate({
+        path: "category",
+        model: "Category",
+        select: "name slug",
+      })
+      // 🧭 Related Tours (with nested category)
       .populate({
         path: "relatedTours",
-        select: "title price mainImage slug category", // 👈 added category explicitly
+        model: "Tour",
+        select: "title price mainImage slug category",
         populate: {
           path: "category",
-          select: "name slug", // 👈 ensures category slug comes for each related tour
+          model: "Category",
+          select: "name slug",
         },
       });
 
-    if (!tour)
+    if (!tour) {
       return res.status(404).json({ message: "Tour not found" });
+    }
 
     res.json(tour);
   } catch (err) {
