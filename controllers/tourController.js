@@ -10,9 +10,7 @@ const parseArray = (field) => {
     try {
       const parsed = JSON.parse(field);
       if (Array.isArray(parsed)) return parsed;
-    } catch {
-      // not JSON, fallback to comma-split
-    }
+    } catch {}
     return field
       .split(",")
       .map((item) => item.trim())
@@ -21,56 +19,33 @@ const parseArray = (field) => {
   return [];
 };
 
-// 🧠 Helper function for cancellation policy - ARRAY FORMAT
+// 🧠 Helper function for cancellation policy
 const parseCancellationPolicy = (policy) => {
   if (!policy) return [];
-
-  // Agar already array hai
   if (Array.isArray(policy)) return policy;
-
-  // Agar string hai toh JSON parse try karo
   if (typeof policy === "string") {
     try {
       const parsed = JSON.parse(policy);
       if (Array.isArray(parsed)) return parsed;
-
-      // Agar object format mein hai (purana format), convert to array
       if (typeof parsed === "object") {
-        return Object.entries(parsed)
-          .filter(([_, value]) => value && value.trim() !== "")
-          .map(([key, value]) => {
-            const title = key
-              .replace(/([A-Z])/g, " $1")
-              .replace(/^./, (str) => str.toUpperCase())
-              .trim();
-            return { title, description: value };
-          });
+        return Object.entries(parsed).map(([key, value]) => ({
+          title: key.replace(/([A-Z])/g, " $1").trim(),
+          description: value,
+        }));
       }
     } catch {
-      // Agar simple string hai, ek section banao
       return [{ title: "Cancellation Policy", description: policy }];
     }
   }
-
-  // Agar object hai (purana format), convert to array
-  if (typeof policy === "object") {
-    return Object.entries(policy)
-      .filter(([_, value]) => value && value.trim() !== "")
-      .map(([key, value]) => {
-        const title = key
-          .replace(/([A-Z])/g, " $1")
-          .replace(/^./, (str) => str.toUpperCase())
-          .trim();
-        return { title, description: value };
-      });
-  }
-
   return [];
 };
 
 // 🟢 Add new tour
 export const addTour = async (req, res) => {
   try {
+    console.log("📦 Incoming addTour Request");
+    console.log("🧾 Files received:", req.files);
+
     const {
       title,
       description,
@@ -81,7 +56,7 @@ export const addTour = async (req, res) => {
       inclusions,
       exclusions,
       timings,
-      cancellationPolicy, // 🔄 UPDATED - Now structured
+      cancellationPolicy,
       location,
       startDate,
       endDate,
@@ -90,6 +65,7 @@ export const addTour = async (req, res) => {
       relatedTours,
     } = req.body;
 
+    // ✅ Field validation
     if (
       !title ||
       !description ||
@@ -97,31 +73,32 @@ export const addTour = async (req, res) => {
       !duration ||
       !category ||
       !startDate ||
-      !endDate ||
-      !req.files?.mainImage
+      !endDate
     ) {
       return res
         .status(400)
         .json({ message: "All required fields are required" });
     }
 
-    // ✅ Check category exists
+    // ✅ Category check
     const foundCategory = await Category.findById(category);
     if (!foundCategory)
       return res.status(404).json({ message: "Category not found" });
 
-    // ✅ Date validation
-    if (new Date(endDate) < new Date(startDate)) {
+    // ✅ Image handling with full safety
+    const mainImage =
+      req.files?.mainImage?.[0]?.path ||
+      req.files?.mainImage?.[0]?.secure_url ||
+      "";
+    const galleryImages = req.files?.galleryImages
+      ? req.files.galleryImages.map((f) => f.path)
+      : [];
+
+    if (!mainImage) {
       return res
         .status(400)
-        .json({ message: "End date cannot be before start date" });
+        .json({ message: "Main image upload failed or missing" });
     }
-
-    // ✅ Handle image uploads
-    const mainImage = req.files.mainImage[0].path.replace(/\\/g, "/");
-    const galleryImages = req.files.galleryImages
-      ? req.files.galleryImages.map((file) => file.path.replace(/\\/g, "/"))
-      : [];
 
     const tour = new Tour({
       title,
@@ -136,7 +113,7 @@ export const addTour = async (req, res) => {
       inclusions: parseArray(inclusions),
       exclusions: parseArray(exclusions),
       timings,
-      cancellationPolicy: parseCancellationPolicy(cancellationPolicy), // 🔄 UPDATED - Now ARRAY format
+      cancellationPolicy: parseCancellationPolicy(cancellationPolicy),
       location,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
@@ -146,14 +123,140 @@ export const addTour = async (req, res) => {
     });
 
     await tour.save();
+    console.log("✅ Tour saved successfully:", tour.title);
     res.status(201).json({ message: "Tour added successfully", tour });
   } catch (err) {
-    console.error("❌ Error adding tour:", err);
+    console.error("❌ Error adding tour (Full Trace):", err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// 🟡 Get all tours
+// 🟠 Update Tour
+// 🟠 Update Tour (Final Stable Version)
+export const updateTour = async (req, res) => {
+  try {
+    debugger; // 🧠 VS Code debugger yahan se execution catch karega
+
+    console.log("============== 🛠 UPDATE TOUR DEBUG START 🛠 ==============");
+    console.log("📩 Request URL:", req.originalUrl);
+    console.log("🆔 Tour ID Param:", req.params.id);
+    console.log("🧾 Request Body:", JSON.stringify(req.body, null, 2));
+    console.log("📸 Files Received:", req.files ? Object.keys(req.files) : "❌ No files");
+
+    const { id } = req.params;
+    const {
+      title,
+      description,
+      price,
+      duration,
+      category,
+      highlights,
+      inclusions,
+      exclusions,
+      timings,
+      cancellationPolicy,
+      location,
+      startDate,
+      endDate,
+      maxGuests,
+      termsAndConditions,
+      relatedTours,
+    } = req.body;
+
+    console.log("🔍 Finding Tour by ID...");
+    const tour = await Tour.findById(id);
+    if (!tour) {
+      console.warn("⚠️ Tour not found with ID:", id);
+      return res.status(404).json({ message: "Tour not found" });
+    }
+
+    // 🧩 File updates
+    if (req.files && req.files.mainImage?.length > 0) {
+      console.log("📷 Updating main image:", req.files.mainImage[0].path);
+      tour.mainImage = req.files.mainImage[0].path;
+    }
+
+    if (req.files && req.files.galleryImages?.length > 0) {
+      console.log("🖼 Updating gallery images count:", req.files.galleryImages.length);
+      tour.galleryImages = req.files.galleryImages.map((f) => f.path);
+    }
+
+    // 📝 Update fields
+    if (title) {
+      console.log("✏️ Updating title:", title);
+      tour.title = title;
+      tour.slug = slugify(title, { lower: true });
+    }
+
+    if (description) tour.description = description;
+    if (price) tour.price = price;
+    if (duration) tour.duration = duration;
+    if (timings) tour.timings = timings;
+    if (location) tour.location = location;
+    if (termsAndConditions !== undefined)
+      tour.termsAndConditions = termsAndConditions;
+
+    if (cancellationPolicy !== undefined) {
+      console.log("📜 Parsing cancellation policy...");
+      tour.cancellationPolicy = parseCancellationPolicy(cancellationPolicy);
+    }
+
+    // 📅 Validate dates
+    if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+      console.error("❌ Invalid dates: endDate < startDate");
+      return res.status(400).json({
+        message: "End date cannot be before start date",
+      });
+    }
+
+    if (startDate) tour.startDate = new Date(startDate);
+    if (endDate) tour.endDate = new Date(endDate);
+    if (maxGuests) tour.maxGuests = maxGuests;
+
+    // 🧩 Category validation
+    if (category) {
+      console.log("🔗 Verifying category ID:", category);
+      const foundCategory = await Category.findById(category);
+      if (foundCategory) {
+        tour.category = foundCategory._id;
+      } else {
+        console.warn("⚠️ Category not found:", category);
+      }
+    }
+
+    // 🧮 Parse array fields safely
+    console.log("📦 Parsing array fields...");
+    tour.highlights = parseArray(highlights);
+    tour.inclusions = parseArray(inclusions);
+    tour.exclusions = parseArray(exclusions);
+    tour.relatedTours = parseArray(relatedTours);
+
+    console.log("💾 Saving updated tour...");
+    await tour.save();
+
+    console.log("✅ Tour updated successfully:", tour.title);
+    console.log("============== ✅ UPDATE TOUR DEBUG END ✅ ==============");
+
+    res.json({ message: "Tour updated successfully", tour });
+
+  } catch (err) {
+    console.error("============== ❌ UPDATE TOUR ERROR ❌ ==============");
+    console.error("🧨 ERROR MESSAGE:", err.message);
+    console.error("📂 STACK TRACE:", err.stack);
+    console.error("📦 BODY AT FAILURE:", req.body);
+    console.error("📸 FILES AT FAILURE:", req.files);
+    console.error("======================================================");
+    debugger; // 🧠 Stop here on runtime error (visible in VS Code debugger)
+
+    return res.status(500).json({
+      message: err.message,
+      stack: err.stack,
+    });
+  }
+};
+
+
+// 🟡 Get All Tours
 export const getTours = async (req, res) => {
   try {
     const tours = await Tour.find()
@@ -162,6 +265,68 @@ export const getTours = async (req, res) => {
     res.json(tours);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+// 🔵 Get single tour by slug
+export const getTourBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const tour = await Tour.findOne({ slug })
+      .populate("category", "name slug")
+      .populate({
+        path: "relatedTours",
+        populate: { path: "category", select: "name slug" },
+        select: "title price mainImage slug",
+      });
+
+    if (!tour) return res.status(404).json({ message: "Tour not found" });
+    res.json(tour);
+  } catch (err) {
+    console.error("❌ Error fetching tour:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// 🔴 Delete tour
+export const deleteTour = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tour = await Tour.findByIdAndDelete(id);
+    if (!tour) return res.status(404).json({ message: "Tour not found" });
+    res.json({ message: "Tour deleted successfully" });
+  } catch (err) {
+    console.error("❌ Error deleting tour:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// 🟣 Check availability
+export const checkAvailability = async (req, res) => {
+  try {
+    const { tourId, date, guests } = req.body;
+    const tour = await Tour.findById(tourId);
+    if (!tour) return res.status(404).json({ message: "Tour not found" });
+
+    const selectedDate = new Date(date);
+    const startDate = new Date(tour.startDate);
+    const endDate = new Date(tour.endDate);
+
+    const isDateAvailable =
+      selectedDate >= startDate && selectedDate <= endDate;
+    const isGuestAvailable = guests <= tour.maxGuests;
+
+    res.json({
+      available: isDateAvailable && isGuestAvailable,
+      reason: !isDateAvailable
+        ? "Selected date is not within tour dates"
+        : !isGuestAvailable
+        ? "Number of guests exceeds limit"
+        : null,
+    });
+  } catch (error) {
+    console.error("❌ Error checking availability:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -183,161 +348,5 @@ export const getToursByCategory = async (req, res) => {
     res.json(tours);
   } catch (err) {
     res.status(500).json({ message: err.message });
-  }
-};
-
-// 🔵 Get single tour by slug
-export const getTourBySlug = async (req, res) => {
-  try {
-    const { slug } = req.params;
-    const tour = await Tour.findOne({ slug })
-      .populate("category", "name slug")
-      .populate({
-        path: "relatedTours",
-        populate: { path: "category", select: "name slug" },
-        select: "title price mainImage slug",
-      });
-
-    if (!tour) return res.status(404).json({ message: "Tour not found" });
-
-    res.json(tour);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// 🔴 Delete a tour
-export const deleteTour = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const tour = await Tour.findByIdAndDelete(id);
-    if (!tour) return res.status(404).json({ message: "Tour not found" });
-
-    res.json({ message: "Tour deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// 🟠 Update/Edit a tour
-export const updateTour = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const {
-      title,
-      description,
-      price,
-      duration,
-      category,
-      highlights,
-      inclusions,
-      exclusions,
-      timings,
-      cancellationPolicy, // 🔄 UPDATED - Now structured
-      location,
-      startDate,
-      endDate,
-      maxGuests,
-      termsAndConditions,
-      relatedTours,
-    } = req.body;
-
-    const tour = await Tour.findById(id);
-    if (!tour) return res.status(404).json({ message: "Tour not found" });
-
-    // ✅ Date validation
-    if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
-      return res
-        .status(400)
-        .json({ message: "End date cannot be before start date" });
-    }
-
-    // ✅ Category update
-    if (category) {
-      const foundCategory = await Category.findById(category);
-      if (!foundCategory)
-        return res.status(404).json({ message: "Category not found" });
-      tour.category = foundCategory._id;
-    }
-
-    // ✅ Basic fields
-    if (title) {
-      tour.title = title;
-      tour.slug = slugify(title, { lower: true });
-    }
-    if (description) tour.description = description;
-    if (price) tour.price = price;
-    if (duration) tour.duration = duration;
-    if (timings) tour.timings = timings;
-    if (location) tour.location = location;
-
-    // ✅ NAYA FIELD - Terms and Conditions
-    if (termsAndConditions !== undefined)
-      tour.termsAndConditions = termsAndConditions;
-
-    if (cancellationPolicy !== undefined) {
-      tour.cancellationPolicy = parseCancellationPolicy(cancellationPolicy);
-    }
-
-    // ✅ Date fields
-    if (startDate) tour.startDate = new Date(startDate);
-    if (endDate) tour.endDate = new Date(endDate);
-
-    // ✅ Array fields (safe parser)
-    tour.highlights = parseArray(highlights);
-    tour.inclusions = parseArray(inclusions);
-    tour.exclusions = parseArray(exclusions);
-    tour.relatedTours = parseArray(relatedTours);
-
-    if (maxGuests) tour.maxGuests = maxGuests;
-
-    // ✅ Image update
-    if (req.files?.mainImage) {
-      tour.mainImage = req.files.mainImage[0].path.replace(/\\/g, "/");
-    }
-    if (req.files?.galleryImages) {
-      tour.galleryImages = req.files.galleryImages.map((file) =>
-        file.path.replace(/\\/g, "/")
-      );
-    }
-
-    await tour.save();
-    res.json({ message: "Tour updated successfully", tour });
-  } catch (err) {
-    console.error("❌ Error updating tour:", err);
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// 🟣 Check Availability
-export const checkAvailability = async (req, res) => {
-  try {
-    const { tourId, date, guests } = req.body;
-
-    const tour = await Tour.findById(tourId);
-    if (!tour) return res.status(404).json({ message: "Tour not found" });
-
-    const selectedDate = new Date(date);
-    const startDate = new Date(tour.startDate);
-    const endDate = new Date(tour.endDate);
-
-    // Check if selected date is within tour date range
-    const isDateAvailable =
-      selectedDate >= startDate && selectedDate <= endDate;
-    const isGuestAvailable = guests <= tour.maxGuests;
-
-    if (isDateAvailable && isGuestAvailable) {
-      return res.json({ available: true });
-    } else {
-      return res.json({
-        available: false,
-        reason: !isDateAvailable
-          ? "Selected date is not within tour dates"
-          : "Number of guests exceeds limit",
-      });
-    }
-  } catch (error) {
-    console.error("❌ Error checking availability:", error);
-    res.status(500).json({ message: "Server error" });
   }
 };
