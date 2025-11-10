@@ -5,6 +5,7 @@ import {
   getVisaCategories,
   deleteVisaCategory,
   editVisaCategory,
+  getVisasByCategory
 } from "../controllers/visaCategoryController.js";
 
 const router = express.Router();
@@ -17,6 +18,7 @@ router.get("/", getVisaCategories);
 
 // Admin can delete a visa category
 router.delete("/:id", deleteVisaCategory);
+router.get("/category/:slug", getVisasByCategory);
 
 // Edit visa category by ID ✅
 router.put("/:id", editVisaCategory);

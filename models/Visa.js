@@ -25,6 +25,13 @@ const visaSchema = new mongoose.Schema(
     // Related visas
     relatedVisas: [{ type: mongoose.Schema.Types.ObjectId, ref: "Visa" }],
 
+    // ✅ ADD THIS FIELD (Visa Category Reference)
+    visaCategory: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "VisaCategory", // must match model name
+      required: true,
+    },
+
     // Reviews
     reviews: [
       {

@@ -7,7 +7,9 @@ export const addVisaCategory = async (req, res) => {
     const { name } = req.body;
 
     if (!name) {
-      return res.status(400).json({ message: "Visa category name is required" });
+      return res
+        .status(400)
+        .json({ message: "Visa category name is required" });
     }
 
     const existing = await VisaCategory.findOne({ name });
@@ -56,7 +58,9 @@ export const editVisaCategory = async (req, res) => {
     const { name } = req.body;
 
     if (!name)
-      return res.status(400).json({ message: "Visa category name is required" });
+      return res
+        .status(400)
+        .json({ message: "Visa category name is required" });
 
     const updated = await VisaCategory.findByIdAndUpdate(
       id,
@@ -71,5 +75,26 @@ export const editVisaCategory = async (req, res) => {
     res.json(updated);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// 🟢 Get visas by category slug
+export const getVisasByCategory = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const category = await VisaCategory.findOne({ slug });
+
+    if (!category) {
+      return res.status(404).json({ message: "Visa category not found" });
+    }
+
+    const visas = await Visa.find({ category: category._id }).select(
+      "title slug price mainImage"
+    );
+
+    res.json(visas);
+  } catch (err) {
+    console.error("❌ Error fetching visas by category:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };
