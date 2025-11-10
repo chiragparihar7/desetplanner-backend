@@ -5,7 +5,7 @@ import {
   getVisaCategories,
   deleteVisaCategory,
   editVisaCategory,
-  getVisasByCategory
+  getVisasByCategory,updateVisaCategory
 } from "../controllers/visaCategoryController.js";
 
 const router = express.Router();
@@ -22,5 +22,6 @@ router.get("/category/:slug", getVisasByCategory);
 
 // Edit visa category by ID ✅
 router.put("/:id", editVisaCategory);
-
+// 👇 add this line for update
+router.put("/:id", updateVisaCategory);
 export default router;

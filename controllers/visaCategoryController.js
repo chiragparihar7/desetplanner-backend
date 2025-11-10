@@ -1,6 +1,6 @@
 // controllers/visaCategoryController.js
 import VisaCategory from "../models/visaCategoryModel.js";
-
+import slugify from "slugify";
 // 🟢 Add new Visa Category
 export const addVisaCategory = async (req, res) => {
   try {
@@ -96,5 +96,38 @@ export const getVisasByCategory = async (req, res) => {
   } catch (err) {
     console.error("❌ Error fetching visas by category:", err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ✅ Update category name + auto-update slug
+export const updateVisaCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ message: "Category name is required" });
+    }
+
+    const updated = await VisaCategory.findByIdAndUpdate(
+      id,
+      {
+        name,
+        slug: slugify(name, { lower: true, strict: true }),
+      },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    res.json({
+      message: "Visa category updated successfully",
+      category: updated,
+    });
+  } catch (err) {
+    console.error("❌ Error updating visa category:", err.message);
+    res.status(500).json({ error: err.message });
   }
 };
