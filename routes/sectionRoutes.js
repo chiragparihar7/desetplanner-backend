@@ -1,58 +1,32 @@
 import express from "express";
 import {
-  // Section CRUD
   createSection,
   getAllSections,
   getSectionById,
   updateSection,
   deleteSection,
   toggleSectionVisibility,
-
-  // Section Items CRUD
   createSectionItem,
   getItemsBySection,
   updateSectionItem,
   deleteSectionItem,
 } from "../controllers/sectionController.js";
+import { upload } from "../config/cloudinary.js";
 
 const router = express.Router();
 
-/* ----------------------------------
-   🟦 SECTION ROUTES
----------------------------------- */
-
-// ➕ Create new section
+// 🟦 Sections
 router.post("/", createSection);
-
-// 📦 Get all sections
 router.get("/", getAllSections);
-
-// 🔍 Get single section by ID
 router.get("/:id", getSectionById);
-
-// ✏️ Update section
 router.put("/:id", updateSection);
-
-// ❌ Delete section
 router.delete("/:id", deleteSection);
+router.patch("/:id/toggle", toggleSectionVisibility);
 
-// 👁 Toggle visibility (show/hide section)
-router.patch("/:id/visibility", toggleSectionVisibility);
-
-/* ----------------------------------
-   🟩 SECTION ITEM ROUTES
----------------------------------- */
-
-// ➕ Add new item in section
-router.post("/:sectionId/items", createSectionItem);
-
-// 📦 Get all items under a section
+// 🟩 Section Items
+router.post("/:sectionId/items", upload.single("img"), createSectionItem);
 router.get("/:sectionId/items", getItemsBySection);
-
-// ✏️ Update item
-router.put("/items/:itemId", updateSectionItem);
-
-// ❌ Delete item
-router.delete("/items/:itemId", deleteSectionItem);
+router.put("/:sectionId/items/:itemId", upload.single("img"), updateSectionItem);
+router.delete("/:sectionId/items/:itemId", deleteSectionItem);
 
 export default router;
