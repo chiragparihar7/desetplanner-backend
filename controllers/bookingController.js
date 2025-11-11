@@ -1,6 +1,9 @@
 import Booking from "../models/Booking.js";
 import Cart from "../models/Cart.js";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
+
+// 🟢 Initialize Resend client
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // 🟢 Create Booking (Guest + Logged-in User)
 export const createBooking = async (req, res) => {
@@ -32,7 +35,6 @@ export const createBooking = async (req, res) => {
       bookingData.userEmail = req.user.email;
       bookingData.userName = req.user.name;
     } else {
-      // ✅ Guest booking requires these fields
       if (!guestName || !guestEmail || !guestContact) {
         return res.status(400).json({ message: "Guest details are required." });
       }
@@ -45,195 +47,83 @@ export const createBooking = async (req, res) => {
     const booking = await new Booking(bookingData).save();
     await booking.populate("items.tourId", "title price");
 
-    // 🧠 If user had items in cart — clear it (optional)
+    // 🧠 Clear cart if user is logged in
     if (req.user) {
       await Cart.findOneAndUpdate({ user: req.user._id }, { items: [] });
     }
 
-    // ✅ Setup Nodemailer (Gmail App Password ke sath)
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.ADMIN_EMAIL,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
-
-    // 🧾 Prepare email content
-    const userEmail = req.user ? req.user.email : guestEmail;
+    // 🧾 Prepare email data
     const userName = req.user ? req.user.name : guestName;
 
     const bookingDetails = booking.items
       .map(
         (item) => `
-          <li style="margin-bottom:10px;">
-            <b>Tour:</b> ${item.tourId?.title || "Tour"}<br/>
-            <b>Date:</b> ${item.date || "N/A"}<br/>
-            <b>Guests:</b> ${item.guests || 1}<br/>
-            <b>Pickup:</b> ${item.pickupPoint || pickupPoint || "N/A"}<br/>
-            <b>Drop:</b> ${item.dropPoint || dropPoint || "N/A"}
-          </li>`
+        <li style="margin-bottom:10px;">
+          <b>Tour:</b> ${item.tourId?.title || "Tour"}<br/>
+          <b>Date:</b> ${item.date || "N/A"}<br/>
+          <b>Guests:</b> ${item.guests || 1}<br/>
+          <b>Pickup:</b> ${item.pickupPoint || pickupPoint || "N/A"}<br/>
+          <b>Drop:</b> ${item.dropPoint || dropPoint || "N/A"}
+        </li>`
       )
       .join("");
 
-    // ✅ Send confirmation email to user/guest
-    await transporter.sendMail({
-      from: `"Desert Planners Tourism LLC" <${process.env.ADMIN_EMAIL}>`,
-      to: userEmail,
-      subject: "Your Desert Planner Booking Confirmation",
-      html: `
-<div style="font-family:'Segoe UI',Arial,sans-serif;line-height:1.7;background:#f7f7f7;padding:25px;">
-  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 5px 18px rgba(0,0,0,0.1);">
-    
-    <!-- Header -->
-    <div style="background:linear-gradient(90deg,#e82429,#721011);padding:22px 0;text-align:center;color:#fff;">
-      <h1 style="margin:0;font-size:26px;font-weight:700;letter-spacing:0.5px;">🌴 Desert Planner</h1>
-      <p style="margin:5px 0 0;font-size:15px;opacity:0.9;">Your Booking Has Been Confirmed</p>
-    </div>
-
-    <!-- Body -->
-    <div style="padding:28px 30px;">
-      <h2 style="margin-top:0;color:#721011;">Dear ${userName},</h2>
-      <p style="color:#404041;margin-bottom:20px;">
-        Thank you for booking with <b style="color:#e82429;">Desert Planner</b>!  
-        Your booking has been <b style="color:#28a745;">successfully confirmed</b> 🎉  
-        Below are your booking details:
-      </p>
-
-      <!-- Booking Details Box -->
-      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:18px 20px;margin:20px 0;">
-        <h3 style="color:#721011;margin-top:0;">🧾 Booking Summary</h3>
-        <ul style="padding-left:18px;color:#404041;margin:0;">
-          ${bookingDetails}
-        </ul>
-        <hr style="border:none;border-top:1px solid #eee;margin:12px 0;">
-        <p style="margin:6px 0;"><b>Total Price:</b> <span style="color:#e82429;">AED ${totalPrice}</span></p>
-        <p style="margin:6px 0;"><b>Pickup Point:</b> ${
-          pickupPoint || "N/A"
-        }</p>
-        <p style="margin:6px 0;"><b>Drop Point:</b> ${dropPoint || "N/A"}</p>
-        <p style="margin:6px 0;"><b>Special Request:</b> ${
-          specialRequest || "None"
-        }</p>
-      </div>
-
-      <p style="color:#404041;">
-        Our travel team will reach out shortly to confirm pickup arrangements.  
-        For queries, feel free to contact us at  
-        <a href="mailto:support@desertplanners.net" style="color:#e82429;font-weight:600;text-decoration:none;">support@desertplanners.net</a>.
-      </p>
-
-      // <!-- CTA Button -->
-      // <div style="text-align:center;margin-top:30px;">
-      //   <a href="#"
-      //      style="background:linear-gradient(90deg,#e82429,#721011);
-      //             color:#fff;
-      //             padding:12px 28px;
-      //             border-radius:30px;
-      //             text-decoration:none;
-      //             font-weight:bold;
-      //             letter-spacing:0.3px;
-      //             box-shadow:0 4px 10px rgba(0,0,0,0.15);
-      //             transition:all 0.3s;">
-      //     View My Booking
-      //   </a>
-      // </div>
-
-      <p style="margin-top:30px;color:#555;text-align:center;font-size:15px;">
-        Warm regards,<br/>
-        <b style="color:#721011;">Desert Planner Team</b><br/>
-        <span style="font-size:13px;color:#999;">Dubai, UAE</span>
-      </p>
-    </div>
-
-    <!-- Footer -->
-    <div style="background:#404041;color:#fff;text-align:center;padding:12px;font-size:13px;">
-      © 2025 Desert Planners Tourism LLC | All Rights Reserved
-    </div>
-  </div>
-</div>
-`,
-    });
-
-    // ✅ Send email to admin
-    await transporter.sendMail({
-      from: `"Desert Planners Tourism LLC" <${process.env.ADMIN_EMAIL}>`,
-      to: process.env.ADMIN_EMAIL,
-      subject: "🆕 New Booking Received",
-      html: `
-<!DOCTYPE html>
-<html>
-  <body style="margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background:#f6f6f6;">
-    <div style="max-width:600px;margin:30px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,0.1);">
-      
-      <!-- Header -->
-      <div style="background:linear-gradient(90deg,#e82429,#721011);padding:25px;text-align:center;color:#fff;">
-        <h1 style="margin:0;font-size:26px;letter-spacing:0.5px;">🌴 Desert Planner</h1>
-        <p style="margin:8px 0 0;font-size:15px;opacity:0.9;">Your Booking Confirmation</p>
-      </div>
-
-      <!-- Body -->
-      <div style="padding:30px;">
-        <h3 style="margin:0 0 10px;color:#721011;">Dear ${userName},</h3>
-        <p style="color:#404041;line-height:1.6;">
-          Thank you for booking with <b style="color:#e82429;">Desert Planner</b>!  
-          Your booking has been <b style="color:#28a745;">confirmed</b>.  
-          Here are your trip details 👇
-        </p>
-
-        <!-- Booking Details Card -->
-        <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:18px;margin:25px 0;">
-          ${bookingDetails}
-          <p style="margin:8px 0;"><b>Total Price:</b> AED ${totalPrice}</p>
-          <p style="margin:8px 0;"><b>Pickup Point:</b> ${
-            pickupPoint || "N/A"
-          }</p>
-          <p style="margin:8px 0;"><b>Drop Point:</b> ${dropPoint || "N/A"}</p>
-          <p style="margin:8px 0;"><b>Special Request:</b> ${
-            specialRequest || "None"
-          }</p>
+    // 🧠 HTML Template
+    const emailHtml = `
+    <div style="font-family:'Segoe UI',Arial,sans-serif;line-height:1.7;background:#f7f7f7;padding:25px;">
+      <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 5px 18px rgba(0,0,0,0.1);">
+        <div style="background:linear-gradient(90deg,#e82429,#721011);padding:22px 0;text-align:center;color:#fff;">
+          <h1 style="margin:0;font-size:26px;font-weight:700;">🌴 Desert Planner</h1>
+          <p style="margin:5px 0 0;font-size:15px;opacity:0.9;">New Booking Received</p>
         </div>
 
-        <p style="color:#404041;line-height:1.6;margin-bottom:25px;">
-          Our team will reach out soon to confirm your pickup details.  
-          For questions, contact us at  
-          <a href="info@desertplanners.net" style="color:#e82429;font-weight:600;text-decoration:none;">
-            info@desertplanners.net
-          </a>.
-        </p>
+        <div style="padding:28px 30px;">
+          <h2 style="margin-top:0;color:#721011;">Booking by ${userName}</h2>
+          <p style="color:#404041;margin-bottom:20px;">
+            A new booking has been placed through your website. Here are the details:
+          </p>
 
-        <!-- Button -->
-        // <div style="text-align:center;">
-        //   <a href="https://desertplanner.ae" 
-        //      style="background:linear-gradient(90deg,#e82429,#721011);
-        //             color:#fff;
-        //             padding:12px 30px;
-        //             border-radius:30px;
-        //             text-decoration:none;
-        //             font-weight:bold;
-        //             letter-spacing:0.3px;
-        //             box-shadow:0 3px 8px rgba(0,0,0,0.2);
-        //             transition:all 0.3s;">
-        //      View My Booking
-        //   </a>
-        // </div>
-      </div>
+          <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:18px 20px;margin:20px 0;">
+            <h3 style="color:#721011;margin-top:0;">🧾 Booking Summary</h3>
+            <ul style="padding-left:18px;color:#404041;margin:0;">
+              ${bookingDetails}
+            </ul>
+            <hr style="border:none;border-top:1px solid #eee;margin:12px 0;">
+            <p><b>Total Price:</b> <span style="color:#e82429;">AED ${totalPrice}</span></p>
+            <p><b>Pickup Point:</b> ${pickupPoint || "N/A"}</p>
+            <p><b>Drop Point:</b> ${dropPoint || "N/A"}</p>
+            <p><b>Special Request:</b> ${specialRequest || "None"}</p>
+          </div>
 
-      <!-- Footer -->
-      <div style="background:#721011;text-align:center;padding:14px;color:#fff;font-size:13px;">
-        © 2025 <b>Desert Planners Tourism LLC</b> | Dubai, UAE
+          <p style="color:#404041;">
+            Contact Info:<br/>
+            <b>Name:</b> ${guestName || req.user?.name || "N/A"}<br/>
+            <b>Email:</b> ${guestEmail || req.user?.email || "N/A"}<br/>
+            <b>Phone:</b> ${guestContact || "N/A"}
+          </p>
+
+          <p style="margin-top:30px;color:#555;text-align:center;font-size:15px;">
+            Sent automatically from your website booking system.
+          </p>
+        </div>
+
+        <div style="background:#404041;color:#fff;text-align:center;padding:12px;font-size:13px;">
+          © 2025 Desert Planners Tourism LLC | All Rights Reserved
+        </div>
       </div>
-    </div>
-  </body>
-</html>
-`,
+    </div>`;
+
+    // 📨 Send only to Admin (testing mode)
+    await resend.emails.send({
+      from: "Desert Planner <onboarding@resend.dev>",
+      to: process.env.ADMIN_EMAIL, // 👈 Only admin mail (sandbox safe)
+      subject: "🆕 New Booking Received - Desert Planner",
+      html: emailHtml,
     });
 
     res.status(200).json({
       success: true,
-      message: "Booking confirmed successfully",
+      message: "Booking confirmed successfully (admin notified)",
       booking,
     });
   } catch (err) {
@@ -250,20 +140,14 @@ export const createBooking = async (req, res) => {
 export const getAllBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({})
-      .populate("user", "name email") // ✅ Correct field name
-      .populate("items.tourId", "title") // ✅ Tour info
+      .populate("user", "name email")
+      .populate("items.tourId", "title")
       .sort({ createdAt: -1 });
 
-    res.status(200).json({
-      success: true,
-      bookings,
-    });
+    res.status(200).json({ success: true, bookings });
   } catch (err) {
     console.error("Error fetching bookings:", err);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching bookings",
-    });
+    res.status(500).json({ success: false, message: "Error fetching bookings" });
   }
 };
 
@@ -275,7 +159,6 @@ export const getBookingById = async (req, res) => {
       .populate("items.tourId", "title price location");
 
     if (!booking) return res.status(404).json({ message: "Booking not found" });
-
     res.status(200).json({ booking });
   } catch (err) {
     console.error("Error fetching booking:", err);
