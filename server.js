@@ -33,7 +33,7 @@ import enquiryRoutes from "./routes/enquiryRoutes.js";
 import visaRoutes from "./routes/visaRoutes.js";
 import sectionRoutes from "./routes/sectionRoutes.js";
 import visaCategoryRoutes from "./routes/visaCategoryRoutes.js";
-
+import paymentRoutes from "./routes/paymentRoutes.js";
 // ✅ Cloudinary Config (ensure it loads first)
 import "./config/cloudinary.js";
 
@@ -46,10 +46,12 @@ connectDB();
 // ⚙️ Express App Setup
 // ==========================
 const app = express();
+app.use("/api/payment/webhook", express.raw({ type: "*/*" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan("dev"));
+
 
 // ==========================
 // 🌍 Smart CORS Setup (Local + Production)
@@ -92,7 +94,7 @@ app.use("/api/enquiries", enquiryRoutes);
 app.use("/api/visas", visaRoutes);
 app.use("/api/sections", sectionRoutes);
 app.use("/api/visa-categories", visaCategoryRoutes);
-
+app.use("/api/payment", paymentRoutes);
 // 🏠 Base route
 app.get("/", (req, res) => {
   res.send("✅ Desert Planners API is running...");

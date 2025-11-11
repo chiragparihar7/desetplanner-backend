@@ -26,7 +26,8 @@ export const createBooking = async (req, res) => {
       pickupPoint,
       dropPoint,
       specialRequest,
-      status: "confirmed",
+      status: "pending", // Confirm hone se pehle payment success aana chahiye
+      paymentStatus: "pending",
     };
 
     // ✅ If user is logged in
@@ -147,7 +148,9 @@ export const getAllBookings = async (req, res) => {
     res.status(200).json({ success: true, bookings });
   } catch (err) {
     console.error("Error fetching bookings:", err);
-    res.status(500).json({ success: false, message: "Error fetching bookings" });
+    res
+      .status(500)
+      .json({ success: false, message: "Error fetching bookings" });
   }
 };
 
