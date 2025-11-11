@@ -1,51 +1,78 @@
 import Cart from "../models/Cart.js";
+import mongoose from "mongoose";
 
-// Add item to cart
+// 🛒 Add item to cart
 export const addToCart = async (req, res) => {
   const { userId, tourId, date, guests } = req.body;
 
   try {
-    // userId should be a valid ObjectId string (from logged-in user)
     let cart = await Cart.findOne({ user: userId });
     if (!cart) cart = new Cart({ user: userId, items: [] });
 
     cart.items.push({ tourId, date, guests });
     await cart.save();
 
-    res.status(200).json({ message: "Added to cart", cart });
+    // ✅ Populate cart after saving so frontend gets tour data
+    const populatedCart = await Cart.findOne({ user: userId }).populate(
+      "items.tourId",
+      "title price mainImage"
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Added to cart",
+      cart: populatedCart.items,
+    });
   } catch (err) {
     console.error("Cart Add Error:", err);
-    res.status(500).json({ message: "Error adding to cart", error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Error adding to cart",
+      error: err.message,
+    });
   }
 };
 
-// Get user cart
+// 🧾 Get user cart
 export const getCart = async (req, res) => {
   try {
-    const cart = await Cart.findOne({ user: req.params.userId })
-      .populate("items.tourId");
-    res.status(200).json(cart || { items: [] });
+    const cart = await Cart.findOne({ user: req.params.userId }).populate(
+      "items.tourId",
+      "title price mainImage"
+    );
+
+    res.status(200).json({
+      success: true,
+      cart: cart?.items || [],
+    });
   } catch (err) {
-    res.status(500).json({ message: "Error fetching cart" });
+    console.error("Error fetching cart:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Error fetching cart", error: err.message });
   }
 };
 
-// Remove item
+// ❌ Remove single item
 export const removeItem = async (req, res) => {
   try {
     const { userId, itemId } = req.params;
+    const itemObjectId = new mongoose.Types.ObjectId(itemId);
+
     const cart = await Cart.findOneAndUpdate(
       { user: userId },
-      { $pull: { items: { _id: itemId } } },
+      { $pull: { items: { _id: itemObjectId } } },
       { new: true }
-    ).populate("items.tourId");
-    res.status(200).json(cart);
+    ).populate("items.tourId", "title price mainImage");
+
+    res.status(200).json({ success: true, cart: cart?.items || [] });
   } catch (err) {
-    res.status(500).json({ message: "Error removing item" });
+    console.error("Error removing item:", err);
+    res.status(500).json({ success: false, message: "Error removing item" });
   }
 };
 
-// Clear cart
+// 🧹 Clear entire cart
 export const clearCart = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -54,8 +81,10 @@ export const clearCart = async (req, res) => {
       { $set: { items: [] } },
       { new: true }
     );
-    res.status(200).json({ message: "Cart cleared" });
+
+    res.status(200).json({ success: true, cart: [] });
   } catch (err) {
-    res.status(500).json({ message: "Error clearing cart" });
+    console.error("Error clearing cart:", err);
+    res.status(500).json({ success: false, message: "Error clearing cart" });
   }
 };
