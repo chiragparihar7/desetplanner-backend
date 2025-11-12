@@ -1,4 +1,3 @@
-// routes/visaRoutes.js
 import express from "express";
 import {
   getAllVisas,
@@ -8,16 +7,16 @@ import {
   deleteVisa,
   getVisasByCategory,
 } from "../controllers/visaController.js";
+import { upload } from "../config/cloudinary.js"; // 👈 same as sectionRoutes
 
 const router = express.Router();
 
-// order important
+// 🟩 Visa Routes (with upload middleware)
+router.post("/", upload.single("img"), createVisa); // ✅ handle file upload
+router.put("/:id", upload.single("img"), updateVisa); // ✅ handle update + optional new image
 router.get("/category/:slug", getVisasByCategory);
-
 router.get("/", getAllVisas);
 router.get("/:slug", getVisaBySlug);
-router.post("/", createVisa);
-router.put("/:id", updateVisa);
 router.delete("/:id", deleteVisa);
 
 export default router;

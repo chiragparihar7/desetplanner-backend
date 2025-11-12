@@ -32,7 +32,7 @@ export const createPayment = async (req, res) => {
     console.log("📤 Sending payment request to Paymennt:", payload);
 
     const response = await axios.post(
-      process.env.PAYMENNT_API_URL || "https://merchant.paymennt.com/api/v2/payment",
+      process.env.PAYMENNT_API_URL || "https://uae-api.paymennt.com/api/v2/payments/create",
       payload,
       {
         headers: {

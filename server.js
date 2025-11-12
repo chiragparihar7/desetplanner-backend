@@ -34,6 +34,7 @@ import visaRoutes from "./routes/visaRoutes.js";
 import sectionRoutes from "./routes/sectionRoutes.js";
 import visaCategoryRoutes from "./routes/visaCategoryRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
+import bannerRoutes from "./routes/bannerRoutes.js";
 // ✅ Cloudinary Config (ensure it loads first)
 import "./config/cloudinary.js";
 
@@ -95,6 +96,7 @@ app.use("/api/visas", visaRoutes);
 app.use("/api/sections", sectionRoutes);
 app.use("/api/visa-categories", visaCategoryRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/banner", bannerRoutes);
 // 🏠 Base route
 app.get("/", (req, res) => {
   res.send("✅ Desert Planners API is running...");
@@ -106,6 +108,8 @@ console.log(
   "✅ ENV TEST MONGO_URI:",
   process.env.MONGO_URI ? "Loaded ✅" : "Missing ❌"
 );
+
+console.log("Using payment URL:", process.env.PAYMENNT_API_URL);
 
 // ==========================
 // 📁 Serve Uploaded Files
