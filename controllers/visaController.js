@@ -3,18 +3,43 @@ import Visa from "../models/Visa.js";
 import VisaCategory from "../models/visaCategoryModel.js";
 import slugify from "slugify";
 
+// ✅ helper: har field ko array bana do
+const toArray = (val) => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val.filter(Boolean);
+  if (typeof val === "string") {
+    // agar comma separated aa jaye
+    if (val.trim().startsWith("[")) {
+      // json string
+      try {
+        const parsed = JSON.parse(val);
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : [val];
+      } catch {
+        return [val].filter(Boolean);
+      }
+    }
+    // "item1, item2" wala case
+    if (val.includes(",")) {
+      return val
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
+    }
+    return [val].filter(Boolean);
+  }
+  return [];
+};
+
 // ✅ Get all visas (with optional categorySlug/category filter)
 export const getAllVisas = async (req, res) => {
   try {
     const { category, categorySlug } = req.query; // e.g. ?categorySlug=uae
     let filter = {};
 
-    // 🧩 Agar category ID diya gaya ho (for admin dashboard)
     if (category) {
       filter.visaCategory = category;
     }
 
-    // 🧩 Agar categorySlug diya gaya ho (for frontend)
     if (categorySlug) {
       const foundCategory = await VisaCategory.findOne({ slug: categorySlug });
       if (!foundCategory) {
@@ -23,7 +48,6 @@ export const getAllVisas = async (req, res) => {
       filter.visaCategory = foundCategory._id;
     }
 
-    // 🧩 Filter ke hisaab se visas lao
     const visas = await Visa.find(filter)
       .populate("visaCategory", "name slug")
       .sort({ createdAt: -1 });
@@ -50,14 +74,14 @@ export const getVisaBySlug = async (req, res) => {
   }
 };
 
-// ✅ Add new visa (with category validation + slugify)
+// ✅ Add new visa
 export const createVisa = async (req, res) => {
   try {
     const {
       title,
       price,
       overview,
-      details,
+      // details, // ❌ ab nahi
       gallery,
       img,
       processingTime,
@@ -70,12 +94,17 @@ export const createVisa = async (req, res) => {
       documents,
       relatedVisas,
       visaCategory,
+      howToApply,
+      termsAndConditions,
     } = req.body;
 
+    const overviewArr = toArray(overview);
+
     // 🔸 Required field validation
-    if (!title || !price || !overview || !visaCategory) {
+    if (!title || !price || !visaCategory || !overviewArr.length) {
       return res.status(400).json({
-        message: "Title, Price, Overview, and Visa Category are required.",
+        message:
+          "Title, Price, Visa Category, and at least 1 Overview point are required.",
       });
     }
 
@@ -91,19 +120,21 @@ export const createVisa = async (req, res) => {
       title,
       slug,
       price,
-      overview,
-      details,
-      gallery,
+      overview: overviewArr,
+      // details, // ❌
+      gallery: toArray(gallery),
       img,
       processingTime,
       visaType,
       entryType,
       validity,
       stayDuration,
-      inclusions,
-      exclusions,
-      documents,
-      relatedVisas,
+      inclusions: toArray(inclusions),
+      exclusions: toArray(exclusions),
+      documents: toArray(documents),
+      relatedVisas: toArray(relatedVisas),
+      howToApply: toArray(howToApply),
+      termsAndConditions: toArray(termsAndConditions),
       visaCategory: foundCategory._id,
     });
 
@@ -124,18 +155,57 @@ export const createVisa = async (req, res) => {
   }
 };
 
-// ✅ Update visa (with category + slug update support)
+// ✅ Update visa
 export const updateVisa = async (req, res) => {
   try {
-    const { title, visaCategory } = req.body;
+    const {
+      title,
+      visaCategory,
+      overview,
+      gallery,
+      inclusions,
+      exclusions,
+      documents,
+      relatedVisas,
+      howToApply,
+      termsAndConditions,
+      // details, // ❌
+    } = req.body;
+
     const updateData = { ...req.body };
 
-    // 🔸 Update slug if title changes
+    // overview ko normalize
+    if (typeof overview !== "undefined") {
+      updateData.overview = toArray(overview);
+    }
+    if (typeof gallery !== "undefined") {
+      updateData.gallery = toArray(gallery);
+    }
+    if (typeof inclusions !== "undefined") {
+      updateData.inclusions = toArray(inclusions);
+    }
+    if (typeof exclusions !== "undefined") {
+      updateData.exclusions = toArray(exclusions);
+    }
+    if (typeof documents !== "undefined") {
+      updateData.documents = toArray(documents);
+    }
+    if (typeof relatedVisas !== "undefined") {
+      updateData.relatedVisas = toArray(relatedVisas);
+    }
+    if (typeof howToApply !== "undefined") {
+      updateData.howToApply = toArray(howToApply);
+    }
+    if (typeof termsAndConditions !== "undefined") {
+      updateData.termsAndConditions = toArray(termsAndConditions);
+    }
+
+    // slug update
     if (title) {
       updateData.slug = slugify(title, { lower: true, strict: true });
     }
 
-    // 🔸 Validate and assign category
+    // category validate
     if (visaCategory) {
       const foundCategory = await VisaCategory.findById(visaCategory);
       if (!foundCategory)
@@ -175,7 +245,7 @@ export const deleteVisa = async (req, res) => {
   }
 };
 
-// ✅ Get all visas by category slug (used for dropdowns or navbar)
+// ✅ Get all visas by category slug
 export const getVisasByCategory = async (req, res) => {
   try {
     const { slug } = req.params;

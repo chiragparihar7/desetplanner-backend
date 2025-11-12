@@ -1,3 +1,4 @@
+// routes/visaRoutes.js
 import express from "express";
 import {
   getAllVisas,
@@ -5,12 +6,12 @@ import {
   createVisa,
   updateVisa,
   deleteVisa,
-  getVisasByCategory, // ✅ IMPORT THIS
+  getVisasByCategory,
 } from "../controllers/visaController.js";
 
 const router = express.Router();
 
-// ✅ Add this before /:slug route (important for order)
+// order important
 router.get("/category/:slug", getVisasByCategory);
 
 router.get("/", getAllVisas);

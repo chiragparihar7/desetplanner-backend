@@ -1,3 +1,4 @@
+// models/Visa.js
 import mongoose from "mongoose";
 
 const visaSchema = new mongoose.Schema(
@@ -5,8 +6,29 @@ const visaSchema = new mongoose.Schema(
     title: { type: String, required: true },
     slug: { type: String, required: true, unique: true },
     price: { type: Number, required: true },
-    overview: { type: String, required: true },
-    details: { type: String },
+
+    // ✅ overview ab list wise
+    overview: {
+      type: [String],
+      required: true,
+      default: [],
+    },
+
+    // ❌ details hata diya (jo pehle string tha)
+    // details: { type: String },
+
+    // ✅ new: how to apply (list)
+    howToApply: {
+      type: [String],
+      default: [],
+    },
+
+    // ✅ new: terms & conditions (list)
+    termsAndConditions: {
+      type: [String],
+      default: [],
+    },
+
     gallery: [{ type: String }],
     img: { type: String },
 
@@ -25,10 +47,10 @@ const visaSchema = new mongoose.Schema(
     // Related visas
     relatedVisas: [{ type: mongoose.Schema.Types.ObjectId, ref: "Visa" }],
 
-    // ✅ ADD THIS FIELD (Visa Category Reference)
+    // ✅ Visa Category Reference (required)
     visaCategory: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "VisaCategory", // must match model name
+      ref: "VisaCategory",
       required: true,
     },
 
