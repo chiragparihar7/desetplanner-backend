@@ -203,7 +203,8 @@ export const createPayment = async (req, res) => {
       },
 
       // returnUrl: `${process.env.FRONTEND_URL}/payment-result?reference=${booking._id}`,
-      returnUrl: `${process.env.FRONTEND_URL}/booking-success?reference=${booking._id}`,
+      // returnUrl: `${process.env.FRONTEND_URL}/booking-success?reference=${booking._id}`,
+      returnUrl: `${process.env.FRONTEND_URL}/booking-success?bookingId=${booking._id}`,
       language: "EN",
     };
     // console.log("📤 Sending Checkout Request →", payload);
