@@ -3,19 +3,37 @@ import mongoose from "mongoose";
 
 // 🛒 Add item to cart
 export const addToCart = async (req, res) => {
-  const { userId, tourId, date, guests } = req.body;
+  const {
+    userId,
+    tourId,
+    date,
+    guestsAdult,
+    guestsChild,
+    adultPrice,
+    childPrice,
+  } = req.body;
 
   try {
     let cart = await Cart.findOne({ user: userId });
     if (!cart) cart = new Cart({ user: userId, items: [] });
 
-    cart.items.push({ tourId, date, guests });
+    cart.items.push({
+      tourId,
+      date,
+
+      guestsAdult: guestsAdult || 0,
+      guestsChild: guestsChild || 0,
+
+      adultPrice: adultPrice || 0,
+      childPrice: childPrice || 0,
+    });
+
     await cart.save();
 
-    // ✅ Populate cart after saving so frontend gets tour data
+    // return populated cart
     const populatedCart = await Cart.findOne({ user: userId }).populate(
       "items.tourId",
-      "title price mainImage"
+      "title priceAdult priceChild mainImage"
     );
 
     res.status(200).json({
@@ -38,7 +56,7 @@ export const getCart = async (req, res) => {
   try {
     const cart = await Cart.findOne({ user: req.params.userId }).populate(
       "items.tourId",
-      "title price mainImage"
+      "title priceAdult priceChild mainImage"
     );
 
     res.status(200).json({
@@ -47,35 +65,41 @@ export const getCart = async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching cart:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Error fetching cart", error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Error fetching cart",
+      error: err.message,
+    });
   }
 };
+
 
 // ❌ Remove single item
 export const removeItem = async (req, res) => {
   try {
     const { userId, itemId } = req.params;
-    const itemObjectId = new mongoose.Types.ObjectId(itemId);
 
     const cart = await Cart.findOneAndUpdate(
       { user: userId },
-      { $pull: { items: { _id: itemObjectId } } },
+      { $pull: { items: { _id: itemId } } },
       { new: true }
-    ).populate("items.tourId", "title price mainImage");
+    ).populate("items.tourId", "title priceAdult priceChild mainImage");
 
-    res.status(200).json({ success: true, cart: cart?.items || [] });
+    res.status(200).json({
+      success: true,
+      cart: cart?.items || [],
+    });
   } catch (err) {
     console.error("Error removing item:", err);
     res.status(500).json({ success: false, message: "Error removing item" });
   }
 };
 
-// 🧹 Clear entire cart
+ // 🧹 Clear entire cart
 export const clearCart = async (req, res) => {
   try {
     const { userId } = req.params;
+
     await Cart.findOneAndUpdate(
       { user: userId },
       { $set: { items: [] } },

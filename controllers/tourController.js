@@ -40,8 +40,7 @@ const parseCancellationPolicy = (policy) => {
   return [];
 };
 
-// 🟢 Add new tour
-// 🟢 Add new tour (safe version)
+// 🟢 Add new tour (UPDATED for Adult + Child Price)
 export const addTour = async (req, res) => {
   try {
     console.log("\n=================== 📦 ADD TOUR START ===================");
@@ -54,7 +53,8 @@ export const addTour = async (req, res) => {
     const {
       title,
       description,
-      price,
+      priceAdult,     // ⭐ NEW
+      priceChild,     // ⭐ NEW
       duration,
       category,
       highlights,
@@ -70,11 +70,11 @@ export const addTour = async (req, res) => {
       relatedTours,
     } = req.body;
 
-    // ✅ Required field validation
+    // ⭐ REQUIRED FIELD CHECK
     if (
       !title ||
       !description ||
-      !price ||
+      !priceAdult ||    // ⭐ REQUIRED
       !duration ||
       !category ||
       !startDate ||
@@ -85,7 +85,7 @@ export const addTour = async (req, res) => {
         .json({ message: "All required fields must be filled." });
     }
 
-    // ✅ Category validation (ID, slug, or name)
+    // ⭐ CATEGORY VALIDATION
     let foundCategory = null;
     if (mongoose.Types.ObjectId.isValid(category)) {
       foundCategory = await Category.findById(category);
@@ -96,91 +96,67 @@ export const addTour = async (req, res) => {
     }
 
     if (!foundCategory) {
-      console.error("⚠️ Invalid or missing category:", category);
       return res.status(404).json({
         message: `Category not found or invalid ID: ${category}`,
       });
     }
 
-    // ✅ Image handling (safe defaults)
+    // ⭐ IMAGE HANDLING
     let mainImage = "";
-    if (req.files && req.files.mainImage && req.files.mainImage.length > 0) {
-      const file = req.files.mainImage[0];
-      mainImage = file.path || file.secure_url || "";
+    if (req.files?.mainImage?.length > 0) {
+      mainImage = req.files.mainImage[0].path;
     } else {
-      console.warn("⚠️ No main image uploaded, assigning default image");
       mainImage =
         "https://res.cloudinary.com/dmnzflxh6/image/upload/v1731234567/default-tour.webp";
     }
 
     const galleryImages =
-      req.files && req.files.galleryImages && req.files.galleryImages.length > 0
-        ? req.files.galleryImages.map((f) => f.path || f.secure_url || "")
+      req.files?.galleryImages?.length > 0
+        ? req.files.galleryImages.map((f) => f.path)
         : [];
 
-    // ✅ Dates safety
+    // ⭐ DATE VALIDATION
     const parsedStart = new Date(startDate);
     const parsedEnd = new Date(endDate);
+
     if (isNaN(parsedStart) || isNaN(parsedEnd)) {
       return res
         .status(400)
         .json({ message: "Invalid startDate or endDate format." });
     }
 
-    // ✅ Safe parsing helpers
-    const safeParse = (val, fallback = []) => {
-      if (!val) return fallback;
-      try {
-        const parsed = JSON.parse(val);
-        return Array.isArray(parsed) ? parsed : fallback;
-      } catch {
-        return typeof val === "string"
-          ? val.split(",").map((v) => v.trim()).filter(Boolean)
-          : fallback;
-      }
-    };
-
-    const safeParsePolicy = (policy) => {
-      if (!policy) return [];
-      try {
-        const parsed = JSON.parse(policy);
-        if (Array.isArray(parsed)) return parsed;
-        if (typeof parsed === "object") {
-          return Object.entries(parsed).map(([title, description]) => ({
-            title,
-            description,
-          }));
-        }
-        return [{ title: "Policy", description: policy }];
-      } catch {
-        return [{ title: "Policy", description: String(policy) }];
-      }
-    };
-
-    // ✅ Create tour
+    // ⭐ CREATE NEW TOUR OBJECT
     const tour = new Tour({
       title,
       slug: slugify(title, { lower: true, strict: true }),
       description,
-      price: Number(price),
+
+      // ⭐ UPDATED PRICE FIELDS
+      priceAdult: Number(priceAdult),
+      priceChild: priceChild ? Number(priceChild) : null,
+
       duration,
       category: foundCategory._id,
       mainImage,
       galleryImages,
-      highlights: safeParse(highlights),
-      inclusions: safeParse(inclusions),
-      exclusions: safeParse(exclusions),
+
+      highlights: parseArray(highlights),
+      inclusions: parseArray(inclusions),
+      exclusions: parseArray(exclusions),
+
       timings,
-      cancellationPolicy: safeParsePolicy(cancellationPolicy),
+      cancellationPolicy: parseCancellationPolicy(cancellationPolicy),
       location,
       startDate: parsedStart,
       endDate: parsedEnd,
+
       maxGuests: maxGuests ? Number(maxGuests) : 12,
       termsAndConditions: termsAndConditions || "",
-      relatedTours: safeParse(relatedTours),
+      relatedTours: parseArray(relatedTours),
     });
 
     await tour.save();
+
     console.log("✅ Tour saved successfully:", tour.title);
     console.log("==================== ✅ ADD TOUR END ====================\n");
 
@@ -189,42 +165,25 @@ export const addTour = async (req, res) => {
       tour,
     });
   } catch (err) {
-  console.error("\n==================== ❌ ADD TOUR ERROR ❌ ====================");
-  console.error("🧨 Full Error Object:", JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
-  console.error("📛 Message:", err?.message);
-  console.error("📂 Name:", err?.name);
-  console.error("📦 Stack:", err?.stack?.split("\n").slice(0, 5).join("\n"));
-  console.error("📤 Body snapshot:", JSON.stringify(req.body, null, 2));
-  console.error("============================================================\n");
-
-  res.status(500).json({
-    error: true,
-    message: err?.message || "Server Error in addTour",
-    errorDetails: err,
-  });
-}
+    console.error("\n❌ ADD TOUR ERROR:", err.message);
+    return res.status(500).json({
+      error: true,
+      message: err.message || "Server Error in addTour",
+    });
+  }
 };
 
-// 🟠 Update Tour
 
+// 🟠 Update Tour (UPDATED for Adult + Child Price)
 export const updateTour = async (req, res) => {
   try {
-    debugger; // 🧠 VS Code debugger yahan se execution catch karega
-
-    console.log("============== 🛠 UPDATE TOUR DEBUG START 🛠 ==============");
-    console.log("📩 Request URL:", req.originalUrl);
-    console.log("🆔 Tour ID Param:", req.params.id);
-    console.log("🧾 Request Body:", JSON.stringify(req.body, null, 2));
-    console.log(
-      "📸 Files Received:",
-      req.files ? Object.keys(req.files) : "❌ No files"
-    );
-
     const { id } = req.params;
+
     const {
       title,
       description,
-      price,
+      priceAdult,     // ⭐ NEW
+      priceChild,     // ⭐ NEW
       duration,
       category,
       highlights,
@@ -240,129 +199,85 @@ export const updateTour = async (req, res) => {
       relatedTours,
     } = req.body;
 
-    console.log("🔍 Finding Tour by ID...");
+    console.log("🟠 Updating Tour:", id);
+
     const tour = await Tour.findById(id);
     if (!tour) {
-      console.warn("⚠️ Tour not found with ID:", id);
       return res.status(404).json({ message: "Tour not found" });
     }
 
-    // 🧩 File updates
-    if (req.files && req.files.mainImage?.length > 0) {
-      console.log("📷 Updating main image:", req.files.mainImage[0].path);
+    // ⭐ IMAGE UPDATE
+    if (req.files?.mainImage?.length > 0) {
       tour.mainImage = req.files.mainImage[0].path;
     }
 
-    if (req.files && req.files.galleryImages?.length > 0) {
-      console.log(
-        "🖼 Updating gallery images count:",
-        req.files.galleryImages.length
-      );
+    if (req.files?.galleryImages?.length > 0) {
       tour.galleryImages = req.files.galleryImages.map((f) => f.path);
     }
 
-    // 📝 Update fields
+    // ⭐ BASIC FIELDS UPDATE
     if (title) {
-      console.log("✏️ Updating title:", title);
       tour.title = title;
       tour.slug = slugify(title, { lower: true });
     }
 
     if (description) tour.description = description;
-    if (price) tour.price = price;
     if (duration) tour.duration = duration;
     if (timings) tour.timings = timings;
     if (location) tour.location = location;
     if (termsAndConditions !== undefined)
       tour.termsAndConditions = termsAndConditions;
 
-    if (cancellationPolicy !== undefined) {
-      console.log("📜 Parsing cancellation policy...");
-      tour.cancellationPolicy = parseCancellationPolicy(cancellationPolicy);
+    // ⭐ PRICE FIELDS UPDATE
+    if (priceAdult !== undefined) {
+      tour.priceAdult = Number(priceAdult);
     }
 
-    // 📅 Validate dates
+    if (priceChild !== undefined) {
+      tour.priceChild = priceChild ? Number(priceChild) : null;
+    }
+
+    // ⭐ DATES
     if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
-      console.error("❌ Invalid dates: endDate < startDate");
-      return res.status(400).json({
-        message: "End date cannot be before start date",
-      });
+      return res
+        .status(400)
+        .json({ message: "End date cannot be before start date" });
     }
 
     if (startDate) tour.startDate = new Date(startDate);
     if (endDate) tour.endDate = new Date(endDate);
-    if (maxGuests) tour.maxGuests = maxGuests;
 
-    // 🧩 Category validation
+    if (maxGuests) tour.maxGuests = Number(maxGuests);
+
+    // ⭐ CATEGORY UPDATE
     if (category) {
-      console.log("🔗 Verifying category ID:", category);
-      const foundCategory = await Category.findById(category);
-      if (foundCategory) {
-        tour.category = foundCategory._id;
-      } else {
-        console.warn("⚠️ Category not found:", category);
-      }
+      const cat = await Category.findById(category);
+      if (cat) tour.category = cat._id;
     }
 
-    // 🧮 Parse array fields safely
-    console.log("📦 Parsing array fields...");
+    // ⭐ ARRAY FIELDS UPDATE
     tour.highlights = parseArray(highlights);
     tour.inclusions = parseArray(inclusions);
     tour.exclusions = parseArray(exclusions);
     tour.relatedTours = parseArray(relatedTours);
 
-    if (price !== undefined) tour.price = Number(price);
-    if (maxGuests !== undefined) tour.maxGuests = Number(maxGuests);
+    // ⭐ CANCELLATION POLICY
     if (cancellationPolicy !== undefined) {
-      try {
-        const parsedPolicy =
-          typeof cancellationPolicy === "string"
-            ? JSON.parse(cancellationPolicy)
-            : cancellationPolicy;
-        tour.cancellationPolicy = parsedPolicy;
-      } catch (e) {
-        console.warn("⚠️ Invalid cancellationPolicy format:", e.message);
-      }
-    }
-    if (relatedTours !== undefined) {
-      try {
-        const parsedRelated =
-          typeof relatedTours === "string"
-            ? JSON.parse(relatedTours)
-            : relatedTours;
-        tour.relatedTours = parsedRelated.filter((id) =>
-          mongoose.Types.ObjectId.isValid(id)
-        );
-      } catch (e) {
-        console.warn("⚠️ Invalid relatedTours format:", e.message);
-      }
+      tour.cancellationPolicy = parseCancellationPolicy(cancellationPolicy);
     }
 
-    console.log("💾 Saving updated tour...");
     await tour.save();
 
     console.log("✅ Tour updated successfully:", tour.title);
-    console.log("============== ✅ UPDATE TOUR DEBUG END ✅ ==============");
 
-    res.json({ message: "Tour updated successfully", tour });
+    res.json({
+      message: "Tour updated successfully",
+      tour,
+    });
   } catch (err) {
-    console.error("============== ❌ UPDATE TOUR ERROR ❌ ==============");
-    console.error("🧨 ERROR MESSAGE:", err.message);
-    console.error("📂 STACK TRACE:", err.stack);
-    console.error("📦 BODY AT FAILURE:", JSON.stringify(req.body, null, 2));
-    console.error(
-      "📸 FILES AT FAILURE:",
-      req.files ? Object.keys(req.files) : "❌ No files"
-    );
-    console.error(
-      "FULL ERROR JSON:",
-      JSON.stringify(err, Object.getOwnPropertyNames(err), 2)
-    );
-    console.error("======================================================");
-
+    console.error("❌ UPDATE TOUR ERROR:", err);
     return res.status(500).json({
       message: err.message,
-      stack: err.stack,
     });
   }
 };

@@ -1,21 +1,22 @@
-// models/Booking.js
+// ⭐ UPDATED COMPLETE BOOKING MODEL
+
 import mongoose from "mongoose";
 
 const BookingSchema = new mongoose.Schema(
   {
-    // ✅ Logged-in User (optional for guest booking)
+    // User (optional)
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: false,
     },
 
-    // ✅ Guest Info (only if user not logged in)
+    // Guest Info
     guestName: { type: String, trim: true },
     guestEmail: { type: String, trim: true, lowercase: true },
     guestContact: { type: String, trim: true },
 
-    // ✅ Booking Items (Tour details)
+    // ⭐ UPDATED — per booking item adult + child count + price
     items: [
       {
         tourId: {
@@ -24,38 +25,39 @@ const BookingSchema = new mongoose.Schema(
           required: true,
         },
         date: { type: Date, required: true },
-        guests: { type: Number, required: true },
+
+        // ⭐ NEW FIELDS
+        adultCount: { type: Number, required: true },
+        childCount: { type: Number, default: 0 },
+
+        // ⭐ Prices saved at booking time
+        adultPrice: { type: Number, required: true },
+        childPrice: { type: Number, default: 0 },
+
+        // Other info
         pickupPoint: { type: String, trim: true },
         dropPoint: { type: String, trim: true },
       },
     ],
 
-    // ✅ Payment & Pricing Info
+    // ⭐ UPDATED — totalPrice after adult + child calculation
     totalPrice: { type: Number, required: true },
 
-    // ✅ Additional Info
-    specialRequest: { type: String, trim: true },
+    specialRequest: { type: String },
 
-    // ✅ Payment fields (added)
+    // Payment Info
     paymentStatus: {
       type: String,
       enum: ["pending", "paid", "failed"],
       default: "pending",
     },
-    transactionId: {
-      type: String,
-      default: null,
-    },
-    paymentInfo: {
-      type: Object,
-      default: {},
-    },
+    transactionId: { type: String, default: null },
+    paymentInfo: { type: Object, default: {} },
 
-    // ✅ Booking Status
     status: {
       type: String,
       enum: ["pending", "confirmed", "cancelled"],
-      default: "pending", // 👈 initially pending until payment success
+      default: "pending",
     },
   },
   { timestamps: true }

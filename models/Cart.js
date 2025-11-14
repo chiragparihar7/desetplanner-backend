@@ -3,7 +3,13 @@ import mongoose from "mongoose";
 const CartItemSchema = new mongoose.Schema({
   tourId: { type: mongoose.Schema.Types.ObjectId, ref: "Tour", required: true },
   date: { type: Date, required: true },
-  guests: { type: Number, required: true },
+
+  // ⭐ NEW adult/child fields
+  guestsAdult: { type: Number, default: 0 },
+  guestsChild: { type: Number, default: 0 },
+
+  adultPrice: { type: Number, default: 0 },
+  childPrice: { type: Number, default: 0 },
 });
 
 const CartSchema = new mongoose.Schema({
