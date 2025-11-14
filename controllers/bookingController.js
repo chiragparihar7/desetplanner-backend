@@ -137,27 +137,50 @@ export const createBooking = async (req, res) => {
       .join("");
 
     const emailHtml = `
-    <div style="font-family:'Segoe UI',Arial,sans-serif;line-height:1.7;background:#f7f7f7;padding:25px;">
-      <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 5px 18px rgba(0,0,0,0.1);">
-        <div style="background:linear-gradient(90deg,#e82429,#721011);padding:22px 0;text-align:center;color:#fff;">
-          <h1 style="margin:0;font-size:26px;font-weight:700;">🌴 Desert Planner</h1>
-          <p style="margin:5px 0 0;font-size:15px;opacity:0.9;">New Booking Received</p>
-        </div>
+<div style="font-family:'Segoe UI',Arial,sans-serif;line-height:1.7;background:#f7f7f7;padding:25px;">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 5px 18px rgba(0,0,0,0.1);">
+    
+    <div style="background:linear-gradient(90deg,#e82429,#721011);padding:22px 0;text-align:center;color:#fff;">
+      <h1 style="margin:0;font-size:26px;font-weight:700;">🌴 Desert Planner</h1>
+      <p style="margin:5px 0 0;font-size:15px;opacity:0.9;">New Booking Received</p>
+    </div>
 
-        <div style="padding:28px 30px;">
-          <h2 style="margin-top:0;color:#721011;">Booking by ${userName}</h2>
+    <div style="padding:28px 30px;">
 
-          <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:18px 20px;margin:20px 0;">
-            <h3 style="color:#721011;margin-top:0;">🧾 Booking Summary</h3>
-            <ul style="padding-left:18px;color:#404041;margin:0;">
-              ${bookingDetails}
-            </ul>
-            <hr>
-            <p><b>Total Price:</b> <span style="color:#e82429;">AED ${totalPrice}</span></p>
-          </div>
-        </div>
+      <h2 style="margin-top:0;color:#721011;">Booking by ${userName}</h2>
+
+      <!-- ⭐ USER / GUEST DETAILS BLOCK ⭐ -->
+      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:18px 20px;margin-top:18px;">
+        <h3 style="color:#721011;margin-top:0;">🧑 Customer Details</h3>
+        <p style="margin:5px 0;"><b>Name:</b> ${userName}</p>
+        <p style="margin:5px 0;"><b>Email:</b> ${
+          req.user ? req.user.email : guestEmail
+        }</p>
+        <p style="margin:5px 0;"><b>Contact:</b> ${
+          req.user ? "---" : guestContact
+        }</p>
+        <p style="margin:5px 0;"><b>Pickup Point:</b> ${pickupPoint}</p>
+        <p style="margin:5px 0;"><b>Drop Point:</b> ${dropPoint}</p>
+        <p style="margin:5px 0;"><b>Special Request:</b> ${
+          specialRequest || "None"
+        }</p>
+        <p style="margin:5px 0;"><b>Booking ID:</b> ${booking._id}</p>
       </div>
-    </div>`;
+
+      <!-- ⭐ BOOKING SUMMARY ⭐ -->
+      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:18px 20px;margin:20px 0;">
+        <h3 style="color:#721011;margin-top:0;">🧾 Booking Summary</h3>
+        <ul style="padding-left:18px;color:#404041;margin:0;">
+          ${bookingDetails}
+        </ul>
+        <hr>
+        <p><b>Total Price:</b> <span style="color:#e82429;">AED ${totalPrice}</span></p>
+      </div>
+
+    </div>
+  </div>
+</div>`;
+
     console.log("📧 ADMIN EMAIL:", process.env.ADMIN_EMAIL);
 
     await resend.emails.send({
