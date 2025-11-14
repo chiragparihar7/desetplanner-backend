@@ -246,26 +246,51 @@ export const handleWebhook = async (req, res) => {
   try {
     const data = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
 
-    if (data.type === "payment.success") {
-      const ref = data.data.reference;
+    const ref = data?.data?.reference;
 
-      await Payment.findOneAndUpdate(
-        { bookingId: ref },
-        { status: "paid", paymentInfo: data.data },
+    if (!ref) {
+      console.log("❌ Webhook missing reference");
+      return res.status(400).send("ref missing");
+    }
+
+    // 🔥 PAYMENT SUCCESS
+    if (data.type === "payment.success") {
+      // Update Booking
+      await Booking.findByIdAndUpdate(
+        ref,
+        {
+          status: "confirmed",
+          paymentStatus: "paid", // 🔥 MISSING IN YOUR CODE
+        },
         { new: true }
       );
 
-      await Booking.findByIdAndUpdate(ref, { status: "confirmed" });
+      // Update or Create Payment Entry
+      await Payment.findOneAndUpdate(
+        { bookingId: ref },
+        {
+          bookingId: ref,
+          status: "paid",
+          paymentInfo: data.data,
+        },
+        { upsert: true, new: true } // 🔥 Make sure entry exists
+      );
 
       console.log("✅ Payment success (webhook):", ref);
     }
 
+    // 🔥 PAYMENT FAILED
     if (data.type === "payment.failed") {
-      const ref = data.data.reference;
+      await Booking.findByIdAndUpdate(ref, {
+        status: "cancelled",
+        paymentStatus: "failed",
+      });
 
-      await Payment.findOneAndUpdate({ bookingId: ref }, { status: "failed" });
-
-      await Booking.findByIdAndUpdate(ref, { status: "cancelled" });
+      await Payment.findOneAndUpdate(
+        { bookingId: ref },
+        { status: "failed" },
+        { upsert: true }
+      );
 
       console.log("❌ Payment failed (webhook):", ref);
     }
