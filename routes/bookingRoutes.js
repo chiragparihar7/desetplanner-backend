@@ -13,26 +13,33 @@ import { protect, adminAuth, optionalAuth } from "../middleware/authMiddleware.j
 
 const router = express.Router();
 
-// Create
-router.post("/", optionalAuth, createBooking);
+// ================= SPECIFIC ROUTES FIRST =================
 
-// My bookings
-router.get("/my", protect, getMyBookings);
-
-// 🔥 Public booking lookup (BookingID + Email)
-router.get("/lookup", lookupBooking);
-
-// ⭐ ADD THIS
+// 🔥 Invoice download
 router.get("/invoice/:id", downloadInvoice);
 
-// Admin all bookings
+// 🔥 Public booking lookup
+router.get("/lookup", lookupBooking);
+
+// 🔥 My bookings (auth required)
+router.get("/my", protect, getMyBookings);
+
+// ================= CREATE ROUTE =================
+
+// Create booking
+router.post("/", optionalAuth, createBooking);
+
+// ================= ADMIN ROUTES =================
+
+// Admin get all
 router.get("/", adminAuth, getAllBookings);
-
-// 🔥 Single booking (should be at last)
-router.get("/:id", getBookingById);
-
 
 // Admin update
 router.put("/:id/status", adminAuth, updateBookingStatus);
+
+// ================= MUST ALWAYS BE LAST =================
+
+// Single booking fetch
+router.get("/:id", getBookingById);
 
 export default router;
