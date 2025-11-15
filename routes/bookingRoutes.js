@@ -22,7 +22,8 @@ router.get("/my", protect, getMyBookings);
 // 🔥 Public booking lookup (BookingID + Email)
 router.get("/lookup", lookupBooking);
 
-router.get("/:id/invoice", downloadInvoice);
+// ⭐ ADD THIS
+router.get("/invoice/:id", downloadInvoice);
 
 // Admin all bookings
 router.get("/", adminAuth, getAllBookings);
