@@ -5,24 +5,33 @@ import {
   getBookingById,
   updateBookingStatus,
   getMyBookings,
+  lookupBooking,
+  downloadInvoice,
 } from "../controllers/bookingController.js";
+
 import { protect, adminAuth, optionalAuth } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// ✅ Guests + Logged-in Users can create booking
+// Create
 router.post("/", optionalAuth, createBooking);
 
-// ✅ Logged-in user's bookings
+// My bookings
 router.get("/my", protect, getMyBookings);
 
-// ✅ Admin routes
+// 🔥 Public booking lookup (BookingID + Email)
+router.get("/lookup", lookupBooking);
+
+router.get("/:id/invoice", downloadInvoice);
+
+// Admin all bookings
 router.get("/", adminAuth, getAllBookings);
 
-// 🔥 Public route (IMPORTANT for booking success page)
+// 🔥 Single booking (should be at last)
 router.get("/:id", getBookingById);
 
-// Admin update booking status
+
+// Admin update
 router.put("/:id/status", adminAuth, updateBookingStatus);
 
 export default router;
