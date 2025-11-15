@@ -244,29 +244,38 @@ export const createPayment = async (req, res) => {
 // ============================
 export const handleWebhook = async (req, res) => {
   try {
-        console.log("🔥 Webhook Received RAW Body:", req.body);
-    const data = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    console.log("🔥 Webhook Received RAW Body:", req.body);
 
-    const ref = data?.data?.reference;
+    // Convert RAW body buffer → string → JSON
+    let raw = req.body;
+
+    if (Buffer.isBuffer(raw)) {
+      raw = raw.toString("utf8");
+    }
+
+    const data = JSON.parse(raw);
+
+    console.log("🔍 Full Webhook Parsed:", data);
+
+    // Extract reference or fallback to orderId
+    const ref = data?.data?.reference || data?.data?.orderId;
 
     if (!ref) {
-      console.log("❌ Webhook missing reference");
+      console.log("❌ Webhook missing reference/orderId");
       return res.status(400).send("ref missing");
     }
 
     // 🔥 PAYMENT SUCCESS
     if (data.type === "payment.success") {
-      // Update Booking
       await Booking.findByIdAndUpdate(
         ref,
         {
           status: "confirmed",
-          paymentStatus: "paid", // 🔥 MISSING IN YOUR CODE
+          paymentStatus: "paid",
         },
         { new: true }
       );
 
-      // Update or Create Payment Entry
       await Payment.findOneAndUpdate(
         { bookingId: ref },
         {
@@ -274,7 +283,7 @@ export const handleWebhook = async (req, res) => {
           status: "paid",
           paymentInfo: data.data,
         },
-        { upsert: true, new: true } // 🔥 Make sure entry exists
+        { upsert: true, new: true }
       );
 
       console.log("✅ Payment success (webhook):", ref);
@@ -302,6 +311,7 @@ export const handleWebhook = async (req, res) => {
     res.status(500).send("Webhook error");
   }
 };
+
 
 // ============================
 // MANUAL CONFIRM PAYMENT
