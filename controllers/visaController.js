@@ -1,7 +1,9 @@
 import Visa from "../models/Visa.js";
 import VisaCategory from "../models/visaCategoryModel.js";
 import slugify from "slugify";
-import { upload } from "../config/cloudinary.js"; // 👈 same as sectionController
+// import { upload } from "../config/cloudinary.js"; // 👈 same as sectionController
+import { visaUpload } from "../middleware/visaUpload.js";
+
 
 // ✅ Helper: normalize to array
 const toArray = (val) => {
@@ -212,5 +214,33 @@ export const getVisasByCategory = async (req, res) => {
   } catch (err) {
     console.error("❌ Error fetching visas by category:", err);
     res.status(500).json({ error: err.message });
+  }
+};
+
+
+// 🟦 Get Visa by ID
+export const getVisaById = async (req, res) => {
+  try {
+    const visa = await Visa.findById(req.params.id)
+      .populate("visaCategory"); // optional: agar category chahiye
+
+    if (!visa) {
+      return res.status(404).json({
+        success: false,
+        message: "Visa not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      visa,
+    });
+  } catch (err) {
+    console.error("❌ Error fetching visa by ID:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching visa",
+      error: err.message,
+    });
   }
 };

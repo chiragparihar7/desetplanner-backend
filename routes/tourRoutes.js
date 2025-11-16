@@ -9,14 +9,14 @@ import {
   checkAvailability,
 } from "../controllers/tourController.js";
 
-import { upload } from "../config/cloudinary.js"; // ✅ Use single Cloudinary config
+import { tourUpload } from "../middleware/tourUpload.js";  // 🟢 Updated
 
 const router = express.Router();
 
 // 🟢 Add Tour
 router.post(
   "/",
-  upload.fields([
+  tourUpload.fields([
     { name: "mainImage", maxCount: 1 },
     { name: "galleryImages", maxCount: 10 },
   ]),
@@ -26,7 +26,7 @@ router.post(
 // 🟡 Update Tour
 router.put(
   "/:id",
-  upload.fields([
+  tourUpload.fields([
     { name: "mainImage", maxCount: 1 },
     { name: "galleryImages", maxCount: 10 },
   ]),

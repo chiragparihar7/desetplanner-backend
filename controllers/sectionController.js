@@ -1,6 +1,6 @@
 import Section from "../models/Section.js";
 import SectionItem from "../models/SectionItem.js";
-import { upload } from "../config/cloudinary.js"; // 👈 ADD THIS LINE
+// import { upload } from "../config/cloudinary.js"; // 👈 ADD THIS LINE
 
 /* ---------------------------------------------
    🟦 SECTION CONTROLLERS

@@ -6,17 +6,30 @@ import {
   updateVisa,
   deleteVisa,
   getVisasByCategory,
+  getVisaById,
 } from "../controllers/visaController.js";
-import { upload } from "../config/cloudinary.js"; // 👈 same as sectionRoutes
+
+import { visaUpload } from "../middleware/visaUpload.js"; // ✅ NEW CORRECT IMPORT
 
 const router = express.Router();
 
-// 🟩 Visa Routes (with upload middleware)
-router.post("/", upload.single("img"), createVisa); // ✅ handle file upload
-router.put("/:id", upload.single("img"), updateVisa); // ✅ handle update + optional new image
+// 🟩 CREATE VISA (single image upload)
+router.post("/", visaUpload.single("img"), createVisa);
+
+// 🟨 UPDATE VISA (optional image upload)
+router.put("/:id", visaUpload.single("img"), updateVisa);
+
+// 🟦 GET VISAS BY CATEGORY
 router.get("/category/:slug", getVisasByCategory);
+
+router.get("/id/:id", getVisaById);
+// 🟦 GET ALL
 router.get("/", getAllVisas);
+
+// 🟦 GET BY SLUG
 router.get("/:slug", getVisaBySlug);
+
+// 🟥 DELETE
 router.delete("/:id", deleteVisa);
 
 export default router;

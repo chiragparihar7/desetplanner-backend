@@ -35,6 +35,8 @@ import sectionRoutes from "./routes/sectionRoutes.js";
 import visaCategoryRoutes from "./routes/visaCategoryRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import bannerRoutes from "./routes/bannerRoutes.js";
+import visaBookingRoutes from "./routes/visaBookingRoutes.js";
+import visaPaymentRoutes from "./routes/visaPaymentRoutes.js";
 // ✅ Cloudinary Config (ensure it loads first)
 import "./config/cloudinary.js";
 
@@ -97,6 +99,10 @@ app.use("/api/sections", sectionRoutes);
 app.use("/api/visa-categories", visaCategoryRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/banner", bannerRoutes);
+app.use("/api/visa-bookings", visaBookingRoutes);
+app.use("/api/visa-payment", visaPaymentRoutes);
+
+
 // 🏠 Base route
 app.get("/", (req, res) => {
   res.send("✅ Desert Planners API is running...");

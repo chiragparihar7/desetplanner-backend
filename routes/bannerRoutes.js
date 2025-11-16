@@ -5,19 +5,27 @@ import {
   updateBanner,
   deleteBanner,
 } from "../controllers/bannerController.js";
-import { upload } from "../config/cloudinary.js";
+
+import { sectionUpload } from "../middleware/sectionUpload.js"; // ✅ UPDATED
 
 const router = express.Router();
 
-// 📤 Upload both desktop & mobile images
-const uploadFields = upload.fields([
+// 📤 Upload desktop + mobile banner images
+const uploadFields = sectionUpload.fields([
   { name: "desktopImage", maxCount: 1 },
   { name: "mobileImage", maxCount: 1 },
 ]);
 
+// ➕ Create banner
 router.post("/", uploadFields, createBanner);
+
+// 📦 Get all banners
 router.get("/", getAllBanners);
+
+// ✏️ Update banner
 router.put("/:id", uploadFields, updateBanner);
+
+// ❌ Delete banner
 router.delete("/:id", deleteBanner);
 
 export default router;
