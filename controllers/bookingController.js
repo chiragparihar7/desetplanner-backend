@@ -13,6 +13,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 // 🟢 Create Booking (Guest + Logged-in User)
 
+
 export const createBooking = async (req, res) => {
   try {
     const {
@@ -26,58 +27,33 @@ export const createBooking = async (req, res) => {
     } = req.body;
 
     console.log("📩 BOOKING BODY RECEIVED:", req.body);
-    console.log("📦 RECEIVED ITEMS:", items);
 
     if (!items || items.length === 0) {
       return res.status(400).json({ message: "Items required" });
     }
 
-    let totalPrice = 0;
+    let subtotal = 0;
     const processedItems = [];
 
     for (const item of items) {
-      console.log("\n=============================");
-      console.log("🟡 Processing Item:", item);
-
       let tour = null;
-
       try {
         tour = await Tour.findById(item.tourId);
       } catch (err) {
         tour = null;
       }
 
-      console.log(
-        "🟢 Tour Found:",
-        tour ? tour.title : "NO (Using fallback price)"
-      );
+      const adultPrice = Number(item.adultPrice || tour?.priceAdult || 0);
+      const childPrice = Number(item.childPrice || tour?.priceChild || 0);
 
-      // ⭐ NEVER ALLOW NaN — fallback priority:
-      const adultPrice = Number(
-        item.adultPrice || (tour ? tour.priceAdult : 0) || 0
-      );
-
-      const childPrice = Number(
-        item.childPrice || (tour ? tour.priceChild : 0) || 0
-      );
-
-      // ⭐ Always numbers
       const adultCount = Number(item.adultCount || 0);
       const childCount = Number(item.childCount || 0);
 
-      console.log("💰 PRICE DEBUG:", {
-        adultPrice,
-        childPrice,
-        adultCount,
-        childCount,
-      });
-
       const itemTotal = adultPrice * adultCount + childPrice * childCount;
-
-      totalPrice += itemTotal;
+      subtotal += itemTotal;
 
       processedItems.push({
-        tourId: item.tourId, // <-- ALWAYS PASS ORIGINAL ID (string)
+        tourId: item.tourId,
         date: item.date,
         pickupPoint,
         dropPoint,
@@ -88,13 +64,20 @@ export const createBooking = async (req, res) => {
       });
     }
 
-    console.log("📦 FINAL PROCESSED ITEMS:", processedItems);
-    console.log("💰 FINAL TOTAL PRICE:", totalPrice);
+    // ⭐ NEW: TRANSACTION FEE + FINAL PRICE
+    const transactionFee = Number((subtotal * 0.0375).toFixed(2));
+    const finalTotal = Number((subtotal + transactionFee).toFixed(2));
 
-    // ⭐ BUILD BOOKING DATA
+    console.log("💰 SUBTOTAL:", subtotal);
+    console.log("💰 FEE (3.75%):", transactionFee);
+    console.log("💰 FINAL TOTAL:", finalTotal);
+
+    // ⭐ SAVE BOOKING WITH NEW FIELDS
     const bookingData = {
       items: processedItems,
-      totalPrice,
+      subtotal,               // NEW
+      transactionFee,         // NEW
+      totalPrice: finalTotal, // UPDATED
       pickupPoint,
       dropPoint,
       specialRequest,
@@ -113,100 +96,58 @@ export const createBooking = async (req, res) => {
     }
 
     const booking = await new Booking(bookingData).save();
-
     await booking.populate("items.tourId", "title priceAdult priceChild");
 
-    // 🧠 Clear logged-in user's cart
     if (req.user) {
       await Cart.findOneAndUpdate({ user: req.user._id }, { items: [] });
     }
 
-    // =============== EMAIL SECTION ===============
-
-    const userName = req.user ? req.user.name : guestName;
-
+    // ⭐ EMAIL SUMMARY
     const bookingDetails = booking.items
       .map(
         (item) => `
-        <li style="margin-bottom:10px;">
+        <li>
           <b>Tour:</b> ${item.tourId?.title}<br/>
           <b>Date:</b> ${item.date}<br/>
           <b>Adults:</b> ${item.adultCount} × ${item.adultPrice}<br/>
           <b>Child:</b> ${item.childCount} × ${item.childPrice}<br/>
-          <b>Pickup:</b> ${item.pickupPoint || "N/A"}<br/>
-          <b>Drop:</b> ${item.dropPoint || "N/A"}
         </li>`
       )
       .join("");
 
+    // ⭐ UPDATED EMAIL WITH FEES
     const emailHtml = `
-<div style="font-family:'Segoe UI',Arial,sans-serif;line-height:1.7;background:#f7f7f7;padding:25px;">
-  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 5px 18px rgba(0,0,0,0.1);">
-    
-    <div style="background:linear-gradient(90deg,#e82429,#721011);padding:22px 0;text-align:center;color:#fff;">
-      <h1 style="margin:0;font-size:26px;font-weight:700;">🌴 Desert Planners Tourism LLC</h1>
-      <p style="margin:5px 0 0;font-size:15px;opacity:0.9;">New Booking Received</p>
-    </div>
-
-    <div style="padding:28px 30px;">
-
-      <h2 style="margin-top:0;color:#721011;">Booking by ${userName}</h2>
-
-      <!-- ⭐ USER / GUEST DETAILS BLOCK ⭐ -->
-      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:18px 20px;margin-top:18px;">
-        <h3 style="color:#721011;margin-top:0;">🧑 Customer Details</h3>
-        <p style="margin:5px 0;"><b>Name:</b> ${userName}</p>
-        <p style="margin:5px 0;"><b>Email:</b> ${
-          req.user ? req.user.email : guestEmail
-        }</p>
-        <p style="margin:5px 0;"><b>Contact:</b> ${
-          req.user ? "---" : guestContact
-        }</p>
-        <p style="margin:5px 0;"><b>Pickup Point:</b> ${pickupPoint}</p>
-        <p style="margin:5px 0;"><b>Drop Point:</b> ${dropPoint}</p>
-        <p style="margin:5px 0;"><b>Special Request:</b> ${
-          specialRequest || "None"
-        }</p>
-        <p style="margin:5px 0;"><b>Booking ID:</b> ${booking._id}</p>
+      <div style="font-family:Arial;padding:20px;">
+        <h2>New Booking Received</h2>
+        <p><b>Name:</b> ${booking.guestName || booking.userName}</p>
+        <p><b>Email:</b> ${booking.guestEmail || booking.userEmail}</p>
+        <hr/>
+        <h3>Booking Summary</h3>
+        <ul>${bookingDetails}</ul>
+        <hr/>
+        <p><b>Subtotal:</b> AED ${subtotal}</p>
+        <p><b>Fee (3.75%):</b> AED ${transactionFee}</p>
+        <p><b>Total Payable:</b> AED ${finalTotal}</p>
+        <p><b>Booking ID:</b> ${booking._id}</p>
       </div>
-
-      <!-- ⭐ BOOKING SUMMARY ⭐ -->
-      <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:18px 20px;margin:20px 0;">
-        <h3 style="color:#721011;margin-top:0;">🧾 Booking Summary</h3>
-        <ul style="padding-left:18px;color:#404041;margin:0;">
-          ${bookingDetails}
-        </ul>
-        <hr>
-        <p><b>Total Price:</b> <span style="color:#e82429;">AED ${totalPrice}</span></p>
-      </div>
-
-    </div>
-  </div>
-</div>`;
-
-    console.log("📧 ADMIN EMAIL:", process.env.ADMIN_EMAIL);
+    `;
 
     await resend.emails.send({
-      from: "Desert Planners Tourism LLC <onboarding@resend.dev>",
+      from: "Desert Planners <onboarding@resend.dev>",
       to: process.env.ADMIN_EMAIL,
-      subject: "🆕 New Booking Received - Desert Planners Tourism LLC",
+      subject: "New Booking Received",
       html: emailHtml,
     });
-
-    // =====================================================
 
     res.status(200).json({
       success: true,
       message: "Booking successful",
       booking,
     });
+
   } catch (err) {
     console.error("❌ Error creating booking:", err);
-    res.status(500).json({
-      success: false,
-      message: "Booking failed",
-      error: err.message,
-    });
+    res.status(500).json({ success: false, message: "Error", error: err.message });
   }
 };
 // 🟡 Get All Bookings (Admin - User + Guest)
@@ -267,7 +208,7 @@ export const getMyBookings = async (req, res) => {
   }
 };
 
-export const lookupBooking = async (req, res) => {
+export const lookupBooking = async (req, res) => {  
   try {
     const { bookingId, email } = req.query;
 
@@ -319,64 +260,44 @@ export const downloadInvoice = async (req, res) => {
     if (!booking) return res.status(404).json({ message: "Booking not found" });
 
     const doc = new PDFDocument({ size: "A4", margin: 0 });
+
     res.setHeader(
       "Content-disposition",
       `attachment; filename=invoice-${booking._id}.pdf`
     );
     res.setHeader("Content-type", "application/pdf");
+
     doc.pipe(res);
 
-    // ==========================
-    // LIGHT PREMIUM HEADER
-    // ==========================
-    // =============================
-    // PERFECT PREMIUM HEADER
-    // =============================
-    doc.rect(0, 0, 595, 120).fill("#f1f5f9"); // light header background
+    // HEADER
+    doc.rect(0, 0, 595, 120).fill("#f1f5f9");
 
-    // ---- LOGO LEFT ----
     try {
-      const logoPath = path.join(
-        process.cwd(),
-        "public",
-        "desertplanners_logo.png"
-      );
-      doc.image(logoPath, 40, 30, { width: 140 });
-    } catch {}
+      const logo = path.join(process.cwd(), "public", "desertplanners_logo.png");
+      doc.image(logo, 40, 30, { width: 140 });
+    } catch (err) {}
 
-    // ---- RIGHT HEADER CONTENT (PERFECT ALIGNED) ----
-
-    // FIXED POSITION (x=330)
-    const headerX = 330;
-
+    const X = 330;
     doc
       .fill("#1e293b")
       .font("Helvetica-Bold")
       .fontSize(26)
-      .text("BOOKING RECEIPT", headerX, 35); // title position
+      .text("BOOKING RECEIPT", X, 35);
 
     doc
       .font("Helvetica")
       .fontSize(11)
       .fill("#475569")
-      .text(`Invoice ID: ${booking._id}`, headerX, 75)
-      .text(`Payment Status: ${booking.paymentStatus}`, headerX, 92)
-      .text(
-        `Date: ${new Date(booking.createdAt).toLocaleString()}`,
-        headerX,
-        110
-      );
+      .text(`Invoice ID: ${booking._id}`, X, 75)
+      .text(`Payment Status: ${booking.paymentStatus}`, X, 92)
+      .text(`Date: ${new Date(booking.createdAt).toLocaleString()}`, X, 110);
 
-    // ==========================
-    // MAIN CONTENT CARD
-    // ==========================
-    doc.roundedRect(30, 140, 535, 690, 14).fill("#ffffff").stroke("#e2e8f0");
+    // MAIN CARD
+    doc.roundedRect(30, 140, 535, 690, 14).fill("#fff").stroke("#e2e8f0");
 
     let y = 170;
 
-    // ==========================
-    // FROM + BILL TO SECTION
-    // ==========================
+    // FROM + BILL TO
     doc.font("Helvetica-Bold").fontSize(14).fill("#3b82f6").text("From", 50, y);
 
     doc
@@ -402,9 +323,7 @@ export const downloadInvoice = async (req, res) => {
       .text(booking.guestEmail || booking.userEmail, 330, y + 35)
       .text(booking.guestContact || "—", 330, y + 50);
 
-    // ==========================
     // TABLE HEADER
-    // ==========================
     y += 120;
 
     doc
@@ -416,25 +335,15 @@ export const downloadInvoice = async (req, res) => {
       .text("Price", 360, y)
       .text("Amount", 460, y);
 
-    doc
-      .moveTo(50, y + 18)
-      .lineTo(550, y + 18)
-      .stroke("#e2e8f0");
+    doc.moveTo(50, y + 18).lineTo(550, y + 18).stroke("#e2e8f0");
 
-    // ==========================
-    // TABLE ROWS (Clean + Light)
-    // ==========================
+    // TABLE ROWS
     y += 30;
 
     booking.items.forEach((item, i) => {
-      const bg = i % 2 === 0 ? "#f8fafc" : "#ffffff";
+      const rowBg = i % 2 === 0 ? "#f8fafc" : "#ffffff";
 
-      doc
-        .save()
-        .fill(bg)
-        .rect(50, y - 10, 500, 28)
-        .fill()
-        .restore();
+      doc.save().fill(rowBg).rect(50, y - 10, 500, 28).fill().restore();
 
       const qty = item.adultCount + item.childCount;
       const amount =
@@ -444,7 +353,7 @@ export const downloadInvoice = async (req, res) => {
         .font("Helvetica")
         .fontSize(11)
         .fill("#1e293b")
-        .text(item.tourId?.title, 55, y, { width: 200 })
+        .text(item.tourId?.title, 55, y)
         .text(qty, 260, y)
         .text(`AED ${item.adultPrice}`, 360, y)
         .text(`AED ${amount}`, 460, y);
@@ -453,42 +362,45 @@ export const downloadInvoice = async (req, res) => {
     });
 
     // ==========================
-    // TOTAL AMOUNT (Light Blue Card)
+    // UPDATED TOTAL SUMMARY CARD
     // ==========================
+
     y += 30;
 
-    doc
-      .roundedRect(320, y, 200, 80, 12)
-      .fill("#eef6ff") // light cool blue
-      .stroke("#bfdbfe");
+    doc.roundedRect(320, y, 200, 110, 12).fill("#eef6ff").stroke("#bfdbfe");
 
     doc
       .font("Helvetica-Bold")
-      .fontSize(20)
-      .fill("#3b82f6")
-      .text(`AED ${booking.totalPrice}`, 335, y + 18);
+      .fontSize(12)
+      .fill("#1e293b")
+      .text(`Subtotal: AED ${booking.subtotal}`, 335, y + 10);
 
     doc
       .font("Helvetica")
-      .fontSize(11)
-      .fill("#475569")
-      .text("Total Amount", 335, y + 48);
+      .fontSize(12)
+      .fill("#1e293b")
+      .text(`Fee (3.75%): AED ${booking.transactionFee}`, 335, y + 35);
 
-    // ==========================
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(16)
+      .fill("#3b82f6")
+      .text(`Total: AED ${booking.totalPrice}`, 335, y + 65);
+
     // FOOTER
-    // ==========================
     doc
       .font("Helvetica")
       .fontSize(10)
       .fill("#64748b")
       .text(
-        "This invoice is computer-generated and does not require a signature.",
+        "This invoice is auto-generated and does not require a signature.",
         0,
         810,
         { align: "center" }
       );
 
     doc.end();
+
   } catch (err) {
     res.status(500).json({ message: "Invoice failed" });
   }
