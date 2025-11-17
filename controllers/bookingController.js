@@ -390,51 +390,58 @@ export const downloadInvoice = async (req, res) => {
 
     safeItems.forEach((item, index) => {
       const rowY = tableY + index * rowHeight;
-
+    
       doc
         .save()
         .roundedRect(45, rowY, 500, rowHeight - 8, 10)
         .fill(index % 2 === 0 ? "#ffffff" : "#f9fbff")
         .restore();
-
+    
       const tourName = item?.tourId?.title || "Tour";
       const adultCount = Number(item?.adultCount || 0);
       const childCount = Number(item?.childCount || 0);
+    
       const adultPrice = Number(item?.adultPrice || 0);
       const childPrice = Number(item?.childPrice || 0);
-
+    
       const qtyText =
         adultCount > 0 || childCount > 0
           ? `${adultCount} Adult${adultCount > 1 ? "s" : ""}${
               childCount > 0 ? `, ${childCount} Child` : ""
             }`
           : "0 Guests";
-
+    
       const priceText =
         childCount > 0
           ? `A: ${adultPrice} / C: ${childPrice}`
           : `AED ${adultPrice}`;
-
-      const totalAmount = adultPrice * adultCount + childPrice * childCount;
-
+    
+      const totalAmount =
+        adultPrice * adultCount + childPrice * childCount;
+    
+      // ⭐ FIXED WRAPPING TOUR NAME
       doc
         .font("Helvetica-Bold")
         .fontSize(11)
         .fill("#0f172a")
-        .text(`•  ${tourName}`, 60, rowY + 14);
-
+        .text(`• ${tourName}`, 60, rowY + 10, {
+          width: 160,    // keep text inside Tour column
+          height: 40,
+          lineBreak: true,
+        });
+    
       doc
         .font("Helvetica")
         .fontSize(10)
         .fill("#334155")
         .text(qtyText, 240, rowY + 14);
-
+    
       doc
         .font("Helvetica")
         .fontSize(10)
         .fill("#334155")
         .text(priceText, 350, rowY + 14);
-
+    
       doc
         .font("Helvetica-Bold")
         .fontSize(13)
@@ -444,6 +451,7 @@ export const downloadInvoice = async (req, res) => {
           align: "right",
         });
     });
+    
 
     tableY += safeItems.length * rowHeight;
 
