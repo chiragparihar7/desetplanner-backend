@@ -1,4 +1,4 @@
-// ⭐ UPDATED COMPLETE BOOKING MODEL
+// ⭐ UPDATED COMPLETE BOOKING MODEL (FINAL FIXED)
 
 import mongoose from "mongoose";
 
@@ -16,7 +16,7 @@ const BookingSchema = new mongoose.Schema(
     guestEmail: { type: String, trim: true, lowercase: true },
     guestContact: { type: String, trim: true },
 
-    // ⭐ UPDATED — per booking item adult + child count + price
+    // ⭐ BOOKING ITEMS
     items: [
       {
         tourId: {
@@ -24,23 +24,26 @@ const BookingSchema = new mongoose.Schema(
           ref: "Tour",
           required: true,
         },
+
         date: { type: Date, required: true },
 
-        // ⭐ NEW FIELDS
         adultCount: { type: Number, required: true },
         childCount: { type: Number, default: 0 },
 
-        // ⭐ Prices saved at booking time
         adultPrice: { type: Number, required: true },
         childPrice: { type: Number, default: 0 },
-
-        // Other info
-        pickupPoint: { type: String, trim: true },
-        dropPoint: { type: String, trim: true },
       },
     ],
 
-    // ⭐ UPDATED — totalPrice after adult + child calculation
+    // ⭐ ROOT-LEVEL Pickup/Drop → FIXED
+    pickupPoint: { type: String, trim: true },
+    dropPoint: { type: String, trim: true },
+
+    // ⭐ SUBTOTAL + FEES → FIXED
+    subtotal: { type: Number, default: 0 },
+    transactionFee: { type: Number, default: 0 },
+
+    // ⭐ FINAL PAYABLE
     totalPrice: { type: Number, required: true },
 
     specialRequest: { type: String },
@@ -51,6 +54,7 @@ const BookingSchema = new mongoose.Schema(
       enum: ["pending", "paid", "failed"],
       default: "pending",
     },
+
     transactionId: { type: String, default: null },
     paymentInfo: { type: Object, default: {} },
 
