@@ -25,11 +25,13 @@ export const createVisaPayment = async (req, res) => {
       });
     }
 
-    const totalAmount = Number(booking.totalPrice || 0);
-    if (!totalAmount || totalAmount <= 0) {
+    // ⭐ ⭐ ⭐ FINAL AMOUNT WITH TRANSACTION FEE
+    const finalAmount = Number(booking.finalAmount || 0);
+
+    if (!finalAmount || finalAmount <= 0) {
       return res.status(400).json({
         success: false,
-        message: "Invalid visa booking amount. Amount must be greater than 0.",
+        message: "Invalid visa booking final amount.",
       });
     }
 
@@ -37,24 +39,27 @@ export const createVisaPayment = async (req, res) => {
       requestId: `REQ-VISA-${booking._id}`,
       orderId: booking._id.toString(),
       currency: "AED",
-      amount: totalAmount,
+      amount: finalAmount, // ⭐ FINAL AMOUNT
+
       totals: {
-        subtotal: totalAmount,
+        subtotal: finalAmount, // ⭐ FINAL AMOUNT
         tax: 0,
         shipping: 0,
         handling: 0,
         discount: 0,
         skipTotalsValidation: true,
       },
+
       items: [
         {
-          name: booking.visaType || booking.visaTitle || "Visa Application",
+          name: booking.visaTitle || "Visa Application",
           sku: `VISA-${booking._id}`,
-          unitprice: totalAmount,
+          unitprice: finalAmount, // ⭐ FINAL AMOUNT
           quantity: 1,
-          linetotal: totalAmount,
+          linetotal: finalAmount, // ⭐ FINAL AMOUNT
         },
       ],
+
       customer: {
         id: booking._id.toString(),
         firstName: booking.fullName?.split(" ")[0] || "Guest",
@@ -62,6 +67,7 @@ export const createVisaPayment = async (req, res) => {
         email: booking.email,
         phone: booking.phone,
       },
+
       billingAddress: {
         name: booking.fullName || "Customer",
         address1: "Dubai",
@@ -72,6 +78,7 @@ export const createVisaPayment = async (req, res) => {
         country: "AE",
         set: true,
       },
+
       deliveryAddress: {
         name: booking.fullName || "Customer",
         address1: "Dubai",
@@ -82,6 +89,7 @@ export const createVisaPayment = async (req, res) => {
         country: "AE",
         set: true,
       },
+
       returnUrl: `${process.env.FRONTEND_URL}/visa-success?bookingId=${booking._id}`,
       language: "EN",
     };
@@ -104,7 +112,7 @@ export const createVisaPayment = async (req, res) => {
     const paymentDoc = new Payment({
       bookingId: booking._id,
       transactionId: gatewayData?.result?.id || gatewayData?.id || null,
-      amount: totalAmount,
+      amount: finalAmount, // ⭐ FINAL AMOUNT
       currency: "AED",
       status: "pending",
       paymentInfo: gatewayData,
@@ -118,7 +126,6 @@ export const createVisaPayment = async (req, res) => {
       success: true,
       paymentLink: gatewayData?.result?.redirectUrl || null,
       payment: paymentDoc,
-      raw: gatewayData,
     });
   } catch (err) {
     console.error("❌ createVisaPayment error:", err);
@@ -128,6 +135,7 @@ export const createVisaPayment = async (req, res) => {
     });
   }
 };
+
 
 // ============================
 // VISA WEBHOOK

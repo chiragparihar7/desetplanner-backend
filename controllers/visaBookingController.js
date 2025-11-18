@@ -241,9 +241,7 @@ export const lookupVisaBooking = async (req, res) => {
 
 export const downloadVisaInvoice = async (req, res) => {
   try {
-    const booking = await VisaBooking.findById(req.params.id).populate(
-      "visaId"
-    );
+    const booking = await VisaBooking.findById(req.params.id).populate("visaId");
 
     if (!booking)
       return res.status(404).json({ message: "Visa Booking not found" });
@@ -258,114 +256,89 @@ export const downloadVisaInvoice = async (req, res) => {
 
     doc.pipe(res);
 
-    // =====================================================
-    // HEADER (Soft Gradient)
-    // =====================================================
-    const headerGradient = doc.linearGradient(0, 0, 595, 120);
-    headerGradient.stop(0, "#e0f2fe").stop(1, "#f0f9ff");
+    const fmt = (n) =>
+      Number(n || 0).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
 
-    doc.rect(0, 0, 595, 120).fill(headerGradient);
+    // --------------------------------------------------
+    // HEADER
+    // --------------------------------------------------
+    doc.rect(0, 0, 595, 120).fill("#f0f9ff");
 
-    // LOGO LEFT
     try {
       const logoPath = path.resolve("public/desertplanners_logo.png");
       doc.image(logoPath, 40, 32, { width: 120 });
-    } catch (err) {
-      console.log("Logo missing:", err);
-    }
+    } catch (e) {}
 
-    // HEADER RIGHT CONTENT
-    const dpHeaderRightWidth = 220;
-    const dpHeaderX = 330;
-    const dpHeaderY = 30;
+    const Hx = 330;
+    const Hw = 220;
 
     doc
-      .fill("#0f172a")
       .font("Helvetica-Bold")
       .fontSize(26)
-      .text("VISA INVOICE", dpHeaderX, dpHeaderY, {
-        width: dpHeaderRightWidth,
-        align: "right",
-      });
+      .fill("#0f172a")
+      .text("VISA INVOICE", Hx, 30, { width: Hw, align: "right" });
 
     doc
       .font("Helvetica")
-      .fontSize(11)
       .fill("#334155")
-      .text(`Invoice ID: ${booking._id}`, dpHeaderX, dpHeaderY + 40, {
-        width: dpHeaderRightWidth,
+      .fontSize(11)
+      .text(`Invoice ID: ${booking._id}`, Hx, 70, { width: Hw, align: "right" })
+      .text(`Payment: ${booking.paymentStatus || "paid"}`, Hx, 86, {
+        width: Hw,
         align: "right",
       })
       .text(
-        `Payment: ${booking.paymentStatus || "Paid"}`,
-        dpHeaderX,
-        dpHeaderY + 58,
-        {
-          width: dpHeaderRightWidth,
-          align: "right",
-        }
-      )
-      .text(
         `Date: ${new Date(booking.createdAt).toLocaleDateString()}`,
-        dpHeaderX,
-        dpHeaderY + 76,
-        { width: dpHeaderRightWidth, align: "right" }
+        Hx,
+        102,
+        { width: Hw, align: "right" }
       );
 
-    // =====================================================
-    // FROM & BILL TO (Clean Layout)
-    // =====================================================
+    // --------------------------------------------------
+    // BILLING
+    // --------------------------------------------------
     let y = 160;
 
-    // LEFT - FROM
-    doc.fill("#0ea5e9").font("Helvetica-Bold").fontSize(15).text("FROM", 50, y);
+    doc
+      .font("Helvetica-Bold")
+      .fill("#0ea5e9")
+      .fontSize(15)
+      .text("FROM", 50, y);
 
     doc
       .font("Helvetica")
-      .fontSize(11)
       .fill("#334155")
+      .fontSize(11)
       .text("Desert Planners Tourism LLC", 50, y + 22)
       .text("Dubai, UAE", 50, y + 38)
       .text("info@desertplanners.net", 50, y + 54)
       .text("+971 4354 6677", 50, y + 70);
 
-    // RIGHT - BILL TO
-    const dpRightPadding = 25;
-    const dpRightX = 330;
-    const dpRightWidth = 240 - dpRightPadding;
+    const Bx = 330;
+    const Bw = 215; // 25px right padding maintained
 
     doc
-      .fill("#0ea5e9")
       .font("Helvetica-Bold")
+      .fill("#0ea5e9")
       .fontSize(15)
-      .text("BILL TO", dpRightX, y, {
-        width: dpRightWidth,
-        align: "right",
-      });
+      .text("BILL TO", Bx, y, { width: Bw, align: "right" });
 
     doc
       .font("Helvetica")
-      .fontSize(11)
       .fill("#334155")
-      .text(booking.fullName, dpRightX, y + 22, {
-        width: dpRightWidth,
-        align: "right",
-      })
-      .text(booking.email, dpRightX, y + 38, {
-        width: dpRightWidth,
-        align: "right",
-      })
-      .text(booking.phone || "—", dpRightX, y + 54, {
-        width: dpRightWidth,
-        align: "right",
-      });
+      .fontSize(11)
+      .text(booking.fullName, Bx, y + 22, { width: Bw, align: "right" })
+      .text(booking.email, Bx, y + 38, { width: Bw, align: "right" })
+      .text(booking.phone || "—", Bx, y + 54, { width: Bw, align: "right" });
 
-    // =====================================================
-    // VISA OVERVIEW TABLE
-    // =====================================================
+    // --------------------------------------------------
+    // VISA OVERVIEW (OLD COMPACT DESIGN RESTORED)
+    // --------------------------------------------------
     let dpTableY = y + 120;
 
-    // Title
     doc
       .font("Helvetica-Bold")
       .fontSize(16)
@@ -381,17 +354,27 @@ export const downloadVisaInvoice = async (req, res) => {
       .fill("#f8fafc")
       .stroke("#e2e8f0");
 
-    const dpRows = [
-      ["Visa Package", booking.visaId?.title || booking.visaType || "N/A"],
-      ["Visa Type", booking.visaType || "N/A"],
-      ["Nationality", booking.nationality || "N/A"],
+    const rows = [
+      ["Visa Package", booking.visaId?.title || "N/A"],
+      [
+        "Issue Date",
+        booking.issueDate
+          ? new Date(booking.issueDate).toLocaleDateString()
+          : "N/A",
+      ],
+      [
+        "Expiry Date",
+        booking.expiryDate
+          ? new Date(booking.expiryDate).toLocaleDateString()
+          : "N/A",
+      ],
       ["Passport No", booking.passportNumber || "N/A"],
     ];
 
-    dpRows.forEach(([label, value], idx) => {
-      const rowY = dpTableY + idx * 35;
+    rows.forEach(([label, value], i) => {
+      const rowY = dpTableY + i * 35;
 
-      if (idx > 0) {
+      if (i > 0) {
         doc.moveTo(45, rowY).lineTo(545, rowY).stroke("#e2e8f0");
       }
 
@@ -405,57 +388,111 @@ export const downloadVisaInvoice = async (req, res) => {
         .font("Helvetica")
         .fontSize(12)
         .fill("#0f172a")
-        .text(value, 260, rowY + 10);
+        .text(value, 60, rowY + 10, {
+          width: 545 - 25 - 60, // right-align with 25px padding
+          align: "right",
+        });
     });
 
-    // =====================================================
-    // TOTAL SUMMARY (Base + Fee + Final Amount)
-    // =====================================================
-    const dpTotalY = dpTableY + dpTableHeight + 40;
+   // --------------------------------------------------
+// PAYMENT SUMMARY (FINAL AMOUNT FIXED + EXTRA SPACING CLEAN DESIGN)
+// --------------------------------------------------
+const dpTotalY = dpTableY + dpTableHeight + 45;
 
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(16)
-      .fill("#0f172a")
-      .text("Payment Summary", 50, dpTotalY);
+doc
+  .font("Helvetica-Bold")
+  .fontSize(17)
+  .fill("#0f172a")
+  .text("Payment Summary", 50, dpTotalY);
 
-    const summaryRows = [
-      ["Base Price", `AED ${booking.basePrice?.toFixed(2)}`],
-      ["Transaction Fee (3.75%)", `AED ${booking.transactionFee?.toFixed(2)}`],
-      ["Final Amount", `AED ${booking.finalAmount?.toFixed(2)}`],
-    ];
+// Formatting helper
+const base = Number(booking.basePrice || booking.totalPrice || 0);
+const fee = Number(booking.transactionFee || 0);
+const finalAmt = Number(booking.finalAmount || base + fee);
 
-    let yy = dpTotalY + 40;
+const Sx = 60; // left padding
+const Sw = 545 - 25 - Sx; // right aligned width with EXACT 25px space
 
-    summaryRows.forEach(([label, value]) => {
-      doc
-        .font("Helvetica-Bold")
-        .fontSize(12)
-        .fill("#1e3a8a")
-        .text(label, 60, yy);
+// PAYMENT ROWS
+const summaryRows = [
+  ["Base Price", fmt(base)],
+  ["Transaction Fee (3.75%)", fmt(fee)],
+];
 
-      doc
-        .font("Helvetica")
-        .fontSize(12)
-        .fill("#0f172a")
-        .text(value, 320, yy, { align: "right" });
+let sy = dpTotalY + 40;
 
-      yy += 28;
-    });
+// ---- BACKGROUND CARD ----
+doc
+  .roundedRect(45, dpTotalY + 30, 500, 125, 14) // fixed clean height
+  .fill("#f8fafc")
+  .stroke("#d5dee9");
 
-    // =====================================================
-    // DYNAMIC FOOTER (Never overlaps)
-    // =====================================================
-    let dpFooterY = dpTotalY + 80;
+// ---- RENDER BASE + FEE ROWS ----
+summaryRows.forEach(([label, value], index) => {
+  // Label left
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(12.8)
+    .fill("#1e3a8a")
+    .text(label, Sx, sy);
 
-    if (dpFooterY > doc.page.height - 90) {
-      dpFooterY = doc.page.height - 90;
+  // Value right aligned
+  doc
+    .font("Helvetica")
+    .fontSize(12.8)
+    .fill("#0f172a")
+    .text(`AED ${value}`, Sx, sy, { width: Sw, align: "right" });
+
+  sy += 30;
+
+  // Extra premium spacing *ONLY* under Transaction Fee row
+  if (index === 1) sy += 10;
+
+  doc.moveTo(55, sy).lineTo(540, sy).stroke("#e2e8f0");
+});
+
+// --------------------------------------------------
+// FINAL AMOUNT (Premium Highlighted Pill)
+// --------------------------------------------------
+sy += 20;
+
+const pillW = 185;
+const pillX = 545 - 25 - pillW; // right side exact 25px gap
+const pillY = sy - 6;
+
+// Beautiful highlight pill
+doc.roundedRect(pillX, pillY, pillW, 30, 8).fill("#e0f2fe");
+
+doc
+  .font("Helvetica-Bold")
+  .fontSize(14)
+  .fill("#0369a1")
+  .text(`AED ${fmt(finalAmt)}`, pillX + 10, pillY + 8, {
+    width: pillW - 20,
+    align: "right",
+  });
+
+// Final Amount label
+doc
+  .font("Helvetica-Bold")
+  .fontSize(14.5)
+  .fill("#0f172a")
+  .text("Final Amount", Sx, sy + 2);
+
+
+    // --------------------------------------------------
+    // SAFE FOOTER
+    // --------------------------------------------------
+    let footY = sy + 60;
+    if (footY > doc.page.height - 120) {
+      doc.addPage();
+      footY = 120;
     }
 
-    doc.moveTo(45, dpFooterY).lineTo(545, dpFooterY).stroke("#e2e8f0");
+    doc.moveTo(45, footY).lineTo(545, footY).stroke("#e2e8f0");
 
     doc
-      .roundedRect(45, dpFooterY + 5, 500, 45, 10)
+      .roundedRect(45, footY + 5, 500, 50, 12)
       .fillOpacity(0.15)
       .fill("#e2e8f0")
       .strokeOpacity(0.3)
@@ -465,23 +502,17 @@ export const downloadVisaInvoice = async (req, res) => {
       .font("Helvetica-Bold")
       .fontSize(11)
       .fill("#334155")
-      .text(
-        "Thank you for choosing Desert Planners Tourism",
-        0,
-        dpFooterY + 12,
-        { align: "center" }
-      );
+      .text("Thank you for choosing Desert Planners Tourism", 0, footY + 15, {
+        align: "center",
+      });
 
     doc
       .font("Helvetica")
       .fontSize(10)
       .fill("#64748b")
-      .text(
-        "This invoice is auto-generated and does not require a signature.",
-        0,
-        dpFooterY + 28,
-        { align: "center" }
-      );
+      .text("This invoice is auto-generated and does not require a signature.", 0, footY + 32, {
+        align: "center",
+      });
 
     doc.end();
   } catch (err) {
