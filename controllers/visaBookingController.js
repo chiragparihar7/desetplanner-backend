@@ -394,90 +394,102 @@ export const downloadVisaInvoice = async (req, res) => {
         });
     });
 
-   // --------------------------------------------------
-// PAYMENT SUMMARY (FINAL AMOUNT FIXED + EXTRA SPACING CLEAN DESIGN)
+ // --------------------------------------------------
+// PAYMENT SUMMARY – CLEAN, PROFESSIONAL, FIXED OVERFLOW
 // --------------------------------------------------
 const dpTotalY = dpTableY + dpTableHeight + 45;
 
+// Title
 doc
   .font("Helvetica-Bold")
   .fontSize(17)
   .fill("#0f172a")
   .text("Payment Summary", 50, dpTotalY);
 
-// Formatting helper
+// Values
 const base = Number(booking.basePrice || booking.totalPrice || 0);
 const fee = Number(booking.transactionFee || 0);
 const finalAmt = Number(booking.finalAmount || base + fee);
 
-const Sx = 60; // left padding
-const Sw = 545 - 25 - Sx; // right aligned width with EXACT 25px space
+// Layout paddings
+const Sx = 60;
+const Sw = 545 - 25 - Sx;
 
-// PAYMENT ROWS
-const summaryRows = [
-  ["Base Price", fmt(base)],
-  ["Transaction Fee (3.75%)", fmt(fee)],
-];
-
+// Start Y
 let sy = dpTotalY + 40;
 
-// ---- BACKGROUND CARD ----
-doc
-  .roundedRect(45, dpTotalY + 30, 500, 125, 14) // fixed clean height
-  .fill("#f8fafc")
-  .stroke("#d5dee9");
+// ---------------------------------------------
+// Background Box (INCREASED HEIGHT to prevent overflow)
+// ---------------------------------------------
+const boxHeight = 170; // 👈 UPDATED — OLD was 140
 
-// ---- RENDER BASE + FEE ROWS ----
+doc
+  .roundedRect(45, sy - 10, 500, boxHeight, 12)
+  .fill("#f4f7fb")
+  .stroke("#d2dae4");
+
+const summaryRows = [
+  ["Base Price", `AED ${fmt(base)}`],
+  ["Transaction Fee (3.75%)", `AED ${fmt(fee)}`],
+];
+
+// ---------------------------------------------
+// RENDER ROWS
+// ---------------------------------------------
 summaryRows.forEach(([label, value], index) => {
-  // Label left
   doc
     .font("Helvetica-Bold")
-    .fontSize(12.8)
+    .fontSize(13)
     .fill("#1e3a8a")
     .text(label, Sx, sy);
 
-  // Value right aligned
   doc
     .font("Helvetica")
-    .fontSize(12.8)
+    .fontSize(13)
     .fill("#0f172a")
-    .text(`AED ${value}`, Sx, sy, { width: Sw, align: "right" });
+    .text(value, Sx, sy, { width: Sw, align: "right" });
 
-  sy += 30;
+  sy += 32;
 
-  // Extra premium spacing *ONLY* under Transaction Fee row
-  if (index === 1) sy += 10;
+  // Extra spacing below fee
+  if (index === 1) sy += 8;
 
   doc.moveTo(55, sy).lineTo(540, sy).stroke("#e2e8f0");
+
+  sy += 10;
 });
 
-// --------------------------------------------------
-// FINAL AMOUNT (Premium Highlighted Pill)
-// --------------------------------------------------
-sy += 20;
+// ---------------------------------------------
+// FINAL AMOUNT (Position FIXED so it stays inside box)
+// ---------------------------------------------
+const pillW = 220;
+const pillX = 545 - 25 - pillW;
 
-const pillW = 185;
-const pillX = 545 - 25 - pillW; // right side exact 25px gap
-const pillY = sy - 6;
+// 👇 IMPORTANT — place FINAL amount BEFORE exceeding box height
+const pillY = dpTotalY + 40 + 95; // perfectly inside background box
 
-// Beautiful highlight pill
-doc.roundedRect(pillX, pillY, pillW, 30, 8).fill("#e0f2fe");
+doc
+  .roundedRect(pillX, pillY, pillW, 32, 10)
+  .fill("#dbeafe"); // soft blue premium
 
 doc
   .font("Helvetica-Bold")
-  .fontSize(14)
-  .fill("#0369a1")
-  .text(`AED ${fmt(finalAmt)}`, pillX + 10, pillY + 8, {
-    width: pillW - 20,
+  .fontSize(15)
+  .fill("#1e40af")
+  .text(`AED ${fmt(finalAmt)}`, pillX + 12, pillY + 8, {
+    width: pillW - 24,
     align: "right",
   });
 
-// Final Amount label
 doc
   .font("Helvetica-Bold")
-  .fontSize(14.5)
+  .fontSize(15)
   .fill("#0f172a")
-  .text("Final Amount", Sx, sy + 2);
+  .text("Final Amount", Sx, pillY + 8);
+
+// Move pointer for footer
+sy = pillY + 50;
+
 
 
     // --------------------------------------------------
