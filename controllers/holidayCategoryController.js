@@ -1,6 +1,7 @@
 import HolidayCategory from "../models/holidayCategoryModel.js";
-
+import HolidayTour from "../models/HolidayTour.js";   // ✅ MISSING IMPORT FIXED
 import slugify from "slugify";
+
 
 // 🟢 Add new Holiday Category
 export const addHolidayCategory = async (req, res) => {
@@ -101,9 +102,9 @@ export const getHolidayPackagesByCategory = async (req, res) => {
     if (!category)
       return res.status(404).json({ message: "Category not found" });
 
-    const packages = await HolidayPackage.find({ category: category._id }).select(
-      "title slug price mainImage"
-    );
+    const packages = await HolidayTour.find({
+      category: category._id,
+    }).select("title slug priceAdult sliderImages");
 
     res.json(packages);
   } catch (error) {

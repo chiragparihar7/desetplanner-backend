@@ -38,6 +38,7 @@ import bannerRoutes from "./routes/bannerRoutes.js";
 import visaBookingRoutes from "./routes/visaBookingRoutes.js";
 import visaPaymentRoutes from "./routes/visaPaymentRoutes.js";
 import holidayCategoryRoutes from "./routes/holidayCategoryRoutes.js"
+import holidayTourRoutes from "./routes/holidayTourRoutes.js"
 // ✅ Cloudinary Config (ensure it loads first)
 import "./config/cloudinary.js";
 
@@ -103,6 +104,7 @@ app.use("/api/banner", bannerRoutes);
 app.use("/api/visa-bookings", visaBookingRoutes);
 app.use("/api/visa-payment", visaPaymentRoutes);
 app.use("/api/holiday-categories", holidayCategoryRoutes);
+app.use("/api/holiday-tour", holidayTourRoutes);
 
 // 🏠 Base route
 app.get("/", (req, res) => {
