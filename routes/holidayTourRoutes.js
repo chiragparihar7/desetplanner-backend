@@ -6,48 +6,54 @@ import {
   updateHolidayTour,
   deleteHolidayTour,
   getToursByCategory,
-  getHolidayPackageBySlug,   // ⭐ ADD
+  getHolidayPackageBySlug,
 } from "../controllers/holidayTourController.js";
 
 import { holidayTourUpload } from "../middleware/holidayTourUpload.js";
 
 const router = express.Router();
 
-// CREATE
+// ⭐ Allow 50 dynamic itinerary image fields: itineraryImages_0 ... itineraryImages_49
+const itineraryFields = Array.from({ length: 50 }).map((_, i) => ({
+  name: `itineraryImages_${i}`,
+  maxCount: 1,
+}));
+
+// ⭐ CREATE
 router.post(
   "/create",
   holidayTourUpload.fields([
     { name: "mainImage", maxCount: 1 },
-    { name: "sliderImages", maxCount: 10 },
-    { name: "itineraryImages", maxCount: 30 },
+    { name: "sliderImages", maxCount: 20 },
+    ...itineraryFields, // ⭐ VERY IMPORTANT
   ]),
   createHolidayTour
 );
 
-// ALL TOURS
+// ⭐ GET ALL
 router.get("/all", getAllHolidayTours);
 
-// SINGLE BY ID
+// ⭐ GET BY ID
 router.get("/:id", getHolidayTourById);
 
-// UPDATE
+// ⭐ UPDATE
 router.put(
   "/update/:id",
   holidayTourUpload.fields([
     { name: "mainImage", maxCount: 1 },
-    { name: "sliderImages", maxCount: 10 },
-    { name: "itineraryImages", maxCount: 30 },
+    { name: "sliderImages", maxCount: 20 },
+    ...itineraryFields, // ⭐ VERY IMPORTANT
   ]),
   updateHolidayTour
 );
 
-// GET TOURS BY CATEGORY
+// ⭐ GET BY CATEGORY
 router.get("/category/:slug", getToursByCategory);
 
-// ⭐ GET TOUR BY SLUG (DETAIL PAGE)
+// ⭐ GET BY SLUG (DETAIL PAGE)
 router.get("/category/:categorySlug/:packageSlug", getHolidayPackageBySlug);
 
-// DELETE
+// ⭐ DELETE
 router.delete("/delete/:id", deleteHolidayTour);
 
 export default router;

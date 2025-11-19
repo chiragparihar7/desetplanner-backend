@@ -2,7 +2,9 @@ import HolidayTour from "../models/HolidayTour.js";
 import HolidayCategory from "../models/holidayCategoryModel.js";
 import slugify from "slugify";
 
-// ➤ CREATE HOLIDAY TOUR
+// =============================================================
+// ⭐ CREATE HOLIDAY TOUR
+// =============================================================
 export const createHolidayTour = async (req, res) => {
   try {
     const {
@@ -21,10 +23,12 @@ export const createHolidayTour = async (req, res) => {
       itineraryTitle,
     } = req.body;
 
+    // Slider
     const sliderImages = req.files?.sliderImages
       ? req.files.sliderImages.map((img) => img.path)
       : [];
 
+    // Itinerary Images
     const itineraryImages = req.files?.itineraryImages
       ? req.files.itineraryImages.map((img) => img.path)
       : [];
@@ -37,7 +41,7 @@ export const createHolidayTour = async (req, res) => {
 
     const tour = new HolidayTour({
       title,
-      slug: slugify(title, { lower: true, strict: true }), // ⭐ ADD SLUG
+      slug: slugify(title, { lower: true, strict: true }),
       duration,
       category,
       priceAdult,
@@ -61,7 +65,9 @@ export const createHolidayTour = async (req, res) => {
   }
 };
 
-// ➤ GET ALL TOURS
+// =============================================================
+// ⭐ GET ALL HOLIDAY TOURS
+// =============================================================
 export const getAllHolidayTours = async (req, res) => {
   try {
     const tours = await HolidayTour.find().populate("category");
@@ -71,7 +77,9 @@ export const getAllHolidayTours = async (req, res) => {
   }
 };
 
-// ➤ GET SINGLE TOUR BY ID
+// =============================================================
+// ⭐ GET SINGLE TOUR BY ID
+// =============================================================
 export const getHolidayTourById = async (req, res) => {
   try {
     const tour = await HolidayTour.findById(req.params.id).populate("category");
@@ -83,14 +91,17 @@ export const getHolidayTourById = async (req, res) => {
   }
 };
 
-// ➤ UPDATE HOLIDAY TOUR
+// =============================================================
+// ⭐⭐ UPDATE HOLIDAY TOUR (FULLY FIXED ITINERARY CODE) ⭐⭐
+// =============================================================
 export const updateHolidayTour = async (req, res) => {
   try {
     const tour = await HolidayTour.findById(req.params.id);
     if (!tour) return res.status(404).json({ message: "Tour not found" });
 
+    // BASIC FIELDS
     tour.title = req.body.title;
-    tour.slug = slugify(req.body.title, { lower: true, strict: true }); // ⭐ UPDATE SLUG
+    tour.slug = slugify(req.body.title, { lower: true, strict: true });
     tour.duration = req.body.duration;
     tour.category = req.body.category;
     tour.priceAdult = req.body.priceAdult;
@@ -98,7 +109,7 @@ export const updateHolidayTour = async (req, res) => {
     tour.description = req.body.description;
     tour.highlights = JSON.parse(req.body.highlights);
 
-    // Update images
+    // =============== SLIDER IMAGES ===================
     let sliderImages = req.body.existingSliderImages || [];
     if (req.files?.sliderImages) {
       sliderImages = [
@@ -108,18 +119,40 @@ export const updateHolidayTour = async (req, res) => {
     }
     tour.sliderImages = sliderImages;
 
-    // Itinerary
-    const uploadedItineraryImages = req.files?.itineraryImages || [];
-    const titles = req.body.itineraryTitle || [];
+    // =========================================================
+    // ⭐⭐⭐ FIXED — CORRECT ITINERARY IMAGE INDEX MATCHING ⭐⭐⭐
+    // =========================================================
+
+    const titles = Array.isArray(req.body.itineraryTitle)
+      ? req.body.itineraryTitle
+      : [req.body.itineraryTitle];
+
+    // STEP 1 → Create empty array for new images
+    let newImages = Array(titles.length).fill(null);
+
+    // STEP 2 → Read each uploaded file EXACT index from field name
+    // e.g. field name: "itineraryImages_3"
+    if (req.files) {
+      Object.keys(req.files).forEach((fieldName) => {
+        if (fieldName.startsWith("itineraryImages_")) {
+          const index = Number(fieldName.split("_")[1]); // EXTRACT 3
+          const file = req.files[fieldName][0]; // multer array
+          if (file) newImages[index] = file.path;
+        }
+      });
+    }
+
+    // STEP 3 → Create final itinerary array without breaking other images
     tour.itinerary = titles.map((title, index) => ({
       day: index + 1,
       title,
       image:
-        uploadedItineraryImages[index]?.path ||
-        tour.itinerary[index]?.image ||
-        "",
+        newImages[index] === "__KEEP_OLD__"
+          ? tour.itinerary[index]?.image || ""
+          : newImages[index] || tour.itinerary[index]?.image || "",
     }));
 
+    // =============== OTHER ARRAYS ==================
     tour.knowBefore = req.body.knowBefore || [];
     tour.inclusions = req.body.inclusions || [];
     tour.exclusions = req.body.exclusions || [];
@@ -130,11 +163,14 @@ export const updateHolidayTour = async (req, res) => {
 
     res.json({ success: true, message: "Updated", tour });
   } catch (err) {
+    console.log(err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// ➤ DELETE TOUR
+// =============================================================
+// ⭐ DELETE TOUR
+// =============================================================
 export const deleteHolidayTour = async (req, res) => {
   try {
     await HolidayTour.findByIdAndDelete(req.params.id);
@@ -144,14 +180,16 @@ export const deleteHolidayTour = async (req, res) => {
   }
 };
 
-// ➤ GET TOURS BY CATEGORY SLUG
+// =============================================================
+// ⭐ GET TOURS BY CATEGORY SLUG
+// =============================================================
 export const getToursByCategory = async (req, res) => {
   try {
     const category = await HolidayCategory.findOne({ slug: req.params.slug });
     if (!category) return res.status(404).json({ message: "Category not found" });
 
     const tours = await HolidayTour.find({ category: category._id }).select(
-      "title slug priceAdult sliderImages"
+      "title slug priceAdult sliderImages duration"
     );
 
     res.json({ success: true, tours });
@@ -160,7 +198,9 @@ export const getToursByCategory = async (req, res) => {
   }
 };
 
-// ⭐ NEW — GET PACKAGE BY SLUG
+// =============================================================
+// ⭐ GET PACKAGE BY SLUG
+// =============================================================
 export const getHolidayPackageBySlug = async (req, res) => {
   try {
     const { packageSlug } = req.params;
